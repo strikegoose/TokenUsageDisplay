@@ -86,7 +86,7 @@ final class StatusBarController: @unchecked Sendable {
 
     // MARK: - Icon
 
-    /// Colored dot + optional remaining-percentage text, rendered as an
+    /// Colored dot + optional used-percentage text, rendered as an
     /// attributed title so colors survive the menu bar's template rendering.
     private func refreshIcon() {
         guard let button = statusItem?.button, let viewModel else { return }
@@ -148,6 +148,12 @@ struct TokenUsageDisplayApp: App {
         DispatchQueue.main.async {
             StatusBarController.shared.setup(with: vm)
             DashboardWindowController.shared.setViewModel(vm)
+
+            // Recover the login item if it was enabled but the system
+            // registration was lost (e.g. after rebuilding the .app).
+            if SettingsStore.shared.settings.launchAtLogin {
+                LaunchAtLoginManager.ensureRegistered()
+            }
         }
 
         // Register global hotkey

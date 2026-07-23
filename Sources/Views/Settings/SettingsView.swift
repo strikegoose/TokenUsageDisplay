@@ -69,10 +69,23 @@ struct GeneralSettingsView: View {
             }
 
             Section {
-                Toggle("开机自动启动", isOn: $settingsStore.settings.launchAtLogin)
-                    .onChange(of: settingsStore.settings.launchAtLogin) { _, newValue in
-                        LaunchAtLoginManager.setEnabled(newValue)
+                Toggle("开机自动启动", isOn: Binding(
+                    get: { settingsStore.settings.launchAtLogin },
+                    set: { newValue in
+                        if LaunchAtLoginManager.setEnabled(newValue) {
+                            settingsStore.settings.launchAtLogin = newValue
+                        } else {
+                            // Registration failed or needs manual approval in
+                            // System Settings — reflect the real system state.
+                            settingsStore.settings.launchAtLogin = LaunchAtLoginManager.isEnabled
+                        }
                     }
+                ))
+                .onAppear {
+                    // The login item can also be toggled from System Settings,
+                    // so always show the real system status.
+                    settingsStore.settings.launchAtLogin = LaunchAtLoginManager.isEnabled
+                }
 
                 Toggle("状态栏显示百分比", isOn: $settingsStore.settings.showPercentageInMenuBar)
             } header: {

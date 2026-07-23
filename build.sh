@@ -33,6 +33,10 @@ cp "$PROJECT_DIR/Resources/Info.plist" "$CONTENTS/"
 # Create PkgInfo
 echo -n "APPL????" > "$CONTENTS/PkgInfo"
 
+# Ad-hoc sign the bundle so ServiceManagement (launch at login) gets a
+# stable code identity tied to the bundle identifier across rebuilds.
+codesign --force --sign - "$APP_BUNDLE"
+
 echo "✅ App bundle created at: $APP_BUNDLE"
 echo ""
 echo "To run: open '$APP_BUNDLE'"
