@@ -2,8 +2,11 @@
 
 macOS 状态栏小工具：把 Kimi / DeepSeek / 火山方舟的额度钉在状态栏上，快用完时一眼可见。
 
-<!-- 截图：将图片放到 docs/images/ 后取消下面这行的注释 -->
-<!-- ![状态栏与面板截图](docs/images/screenshot.png) -->
+![状态栏与面板截图](docs/images/screenshot.png)
+
+## 个人使用场景
+
+这是作者的自用工具：日常同时使用 Kimi Coding Plan（kimi CLI 编码）、DeepSeek（配在 Claude Code 里）、火山方舟（arkcli 管理）三个服务，经常额度用完了才后知后觉，于是写了它。零配置自动检测就是围绕这三个 CLI 的本地登录态做的——同样配置的用户开箱即用；其他环境未经充分测试，遇到问题欢迎提 Issue / PR。
 
 ## 功能
 
@@ -13,6 +16,10 @@ macOS 状态栏小工具：把 Kimi / DeepSeek / 火山方舟的额度钉在状�
 - **火山方舟 ARK**：账户余额；支持手动 AK/SK，也能自动复用 arkcli SSO 登录的 STS 临时凭证（临期自动续签）
 - **Cmd+Shift+T** 全局热键呼出浮动面板（Carbon 热键，无需辅助功能权限）
 - 自动刷新（1 分钟 ~ 1 小时可调）、开机自启动、全中文界面
+
+## 下载
+
+不想自己编译：去 [Releases](https://github.com/rr5dggr85g-ux/TokenUsageDisplay/releases) 下载打包好的 `TokenUsageDisplay.app`（ad-hoc 签名）。解压后拖入"应用程序"，首次打开如被 Gatekeeper 拦截：右键 → 打开，或在 系统设置 → 隐私与安全性 中点"仍要打开"。
 
 ## 系统要求
 
