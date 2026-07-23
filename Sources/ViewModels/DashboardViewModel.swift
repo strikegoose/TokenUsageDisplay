@@ -47,17 +47,24 @@ final class DashboardViewModel {
 
     var aggregatePercentage: Int {
         guard !snapshots.isEmpty else { return 0 }
-        // For usage-based services, show the worst remaining percentage
-        let usageSnapshots = snapshots.filter { $0.usedAmount > 0 || (!$0.isUnlimited && $0.totalAmount > 0 && $0.usagePercentage > 0) }
-        if usageSnapshots.isEmpty {
-            // All balance-type services — show OK
-            return 100
-        }
         // Prefer short rolling windows (Kimi's 5-hour limit, id suffix "#win...")
         // over long-term quotas — that's the number that bites first.
+        // Select rolling windows by identity, not by current usage: a window
+        // sitting at exactly 0% must not silently fall back to the weekly quota.
         // Shows USED percentage (not remaining).
-        let rolling = usageSnapshots.filter { $0.serviceId.contains("#win") }
-        let source = rolling.isEmpty ? usageSnapshots : rolling
+        let rolling = snapshots.filter { $0.serviceId.contains("#win") && !$0.isUnlimited }
+        let source: [UsageData]
+        if !rolling.isEmpty {
+            source = rolling
+        } else {
+            // For usage-based services, show the worst used percentage
+            let usageSnapshots = snapshots.filter { $0.usedAmount > 0 || (!$0.isUnlimited && $0.totalAmount > 0 && $0.usagePercentage > 0) }
+            guard !usageSnapshots.isEmpty else {
+                // All balance-type services — show OK
+                return 100
+            }
+            source = usageSnapshots
+        }
         let maxUsed = source.map(\.usagePercentage).max() ?? 0
         return Int(maxUsed * 100)
     }
