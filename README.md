@@ -19,7 +19,7 @@ macOS 状态栏小工具：把 Kimi / DeepSeek / 火山方舟的额度钉在状�
 
 ## 下载
 
-不想自己编译：去 [Releases](https://github.com/rr5dggr85g-ux/TokenUsageDisplay/releases) 下载打包好的 `TokenUsageDisplay.app`（ad-hoc 签名）。解压后拖入"应用程序"，首次打开如被 Gatekeeper 拦截：右键 → 打开，或在 系统设置 → 隐私与安全性 中点"仍要打开"。
+不想自己编译：去 [Releases](https://github.com/strikegoose/TokenUsageDisplay/releases) 下载打包好的 `TokenUsageDisplay.app`（ad-hoc 签名）。解压后拖入"应用程序"，首次打开如被 Gatekeeper 拦截：右键 → 打开，或在 系统设置 → 隐私与安全性 中点"仍要打开"。
 
 ## 系统要求
 
