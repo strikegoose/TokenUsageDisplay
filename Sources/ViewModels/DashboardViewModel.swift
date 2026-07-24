@@ -8,6 +8,8 @@ final class DashboardViewModel {
     private(set) var isRefreshing = false
     private(set) var lastRefreshDate: Date?
     private(set) var globalError: String?
+    /// Last fetch error per service config id — drives the "刷新失败" hint on cards.
+    private(set) var serviceErrors: [String: String] = [:]
     private var settings = SettingsStore.shared.settings
 
     // MARK: - Computed
@@ -93,8 +95,10 @@ final class DashboardViewModel {
 
         let model = self
         await ServiceManager.shared.setUpdateHandler { newSnapshots in
+            let errors = await ServiceManager.shared.allLastErrors()
             await MainActor.run {
                 model.snapshots = newSnapshots
+                model.serviceErrors = errors
                 model.lastRefreshDate = Date()
                 model.globalError = nil
                 model.isRefreshing = false
@@ -135,6 +139,7 @@ final class DashboardViewModel {
     func refreshService(_ id: String) async {
         await ServiceManager.shared.refreshService(id)
         snapshots = await ServiceManager.shared.currentSnapshots()
+        serviceErrors = await ServiceManager.shared.allLastErrors()
     }
 
     func updateRefreshInterval(_ interval: TimeInterval) {

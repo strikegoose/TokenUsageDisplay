@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ServiceCardView: View {
     let snapshot: UsageData
+    var errorMessage: String? = nil
     var onRefresh: (() -> Void)?
 
     @State private var isRefreshing = false
@@ -156,6 +157,21 @@ struct ServiceCardView: View {
                     Text("\(Self.resetTimeFormatter.string(from: resetTime)) 后重置")
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
+                    Spacer()
+                }
+            }
+
+            // Last fetch failure — the numbers above are stale when this shows
+            if let errorMessage {
+                HStack(alignment: .top, spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(Color(nsColor: .systemOrange))
+                    Text("刷新失败：\(errorMessage)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                 }
             }

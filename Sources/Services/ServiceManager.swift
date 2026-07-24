@@ -5,6 +5,7 @@ actor ServiceManager {
 
     private var configurations: [ServiceConfiguration] = []
     private var snapshots: [String: UsageData] = [:]  // keyed by config.id
+    private var lastErrors: [String: String] = [:]    // keyed by config.id
     private var pollingTask: Task<Void, Never>?
     private var isRefreshing = false
 
@@ -67,6 +68,11 @@ actor ServiceManager {
         snapshots[id]
     }
 
+    /// Last fetch error per service config, empty when everything is healthy.
+    func allLastErrors() -> [String: String] {
+        lastErrors
+    }
+
     // MARK: - Fetching
 
     func setUpdateHandler(_ handler: @Sendable @escaping ([UsageData]) async -> Void) {
@@ -74,7 +80,13 @@ actor ServiceManager {
     }
 
     func refreshAll() async {
-        guard !isRefreshing else { return }
+        guard !isRefreshing else {
+            // A fetch is already in flight (e.g. the polling timer). Still
+            // notify, otherwise callers waiting on this call (manual refresh
+            // button) keep their spinner/disabled state forever.
+            await onUpdate?(currentSnapshots())
+            return
+        }
         isRefreshing = true
         defer { isRefreshing = false }
 
@@ -100,6 +112,7 @@ actor ServiceManager {
             for await (id, result) in group {
                 switch result {
                 case .success(let usages):
+                    lastErrors[id] = nil
                     // Drop any legacy unsuffixed snapshot for this config
                     // (single-card era stored snapshots under the bare config id)
                     if !usages.contains(where: { $0.serviceId == id }) {
@@ -111,6 +124,7 @@ actor ServiceManager {
                         ConfigurationStore.shared.cacheSnapshot(usage)
                     }
                 case .failure(let error):
+                    lastErrors[id] = error.localizedDescription
                     print("[ServiceManager] Fetch failed for \(id): \(error.localizedDescription)")
                     // Only surface an error placeholder when this service has no
                     // data at all — transient failures must not clobber good snapshots
@@ -150,12 +164,14 @@ actor ServiceManager {
                 snapshots[usage.serviceId] = usage
                 ConfigurationStore.shared.cacheSnapshot(usage)
             }
-
-            let current = currentSnapshots()
-            await onUpdate?(current)
+            lastErrors[configId] = nil
         } catch {
+            // Surface the failure instead of swallowing it — the card keeps
+            // showing stale data and now tells the user why.
+            lastErrors[configId] = error.localizedDescription
             print("[ServiceManager] Single refresh failed for \(id): \(error)")
         }
+        await onUpdate?(currentSnapshots())
     }
 
     // MARK: - Auto-refresh

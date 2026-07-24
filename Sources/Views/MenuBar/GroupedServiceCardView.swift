@@ -5,6 +5,7 @@ import SwiftUI
 /// from single-balance cards like DeepSeek.
 struct GroupedServiceCardView: View {
     let snapshots: [UsageData]  // same service, one entry per quota window
+    var errorMessage: String? = nil
     var onRefresh: (() -> Void)?
 
     @State private var isRefreshing = false
@@ -33,6 +34,21 @@ struct GroupedServiceCardView: View {
             VStack(spacing: 8) {
                 ForEach(snapshots, id: \.serviceId) { snapshot in
                     windowRow(snapshot)
+                }
+            }
+
+            // Last fetch failure — the numbers above are stale when this shows
+            if let errorMessage {
+                HStack(alignment: .top, spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(Color(nsColor: .systemOrange))
+                    Text("刷新失败：\(errorMessage)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
                 }
             }
         }

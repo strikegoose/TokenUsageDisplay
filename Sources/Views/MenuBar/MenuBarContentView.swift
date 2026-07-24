@@ -62,14 +62,16 @@ struct MenuBarContentView: View {
 
     @ViewBuilder
     private func cardView(for snapshots: [UsageData]) -> some View {
+        let configId = snapshots.first?.serviceId.components(separatedBy: "#").first ?? ""
+        let errorMessage = viewModel.serviceErrors[configId]
         if snapshots.count > 1 {
-            GroupedServiceCardView(snapshots: snapshots) {
+            GroupedServiceCardView(snapshots: snapshots, errorMessage: errorMessage) {
                 if let first = snapshots.first {
                     Task { await viewModel.refreshService(first.serviceId) }
                 }
             }
         } else if let snapshot = snapshots.first {
-            ServiceCardView(snapshot: snapshot) {
+            ServiceCardView(snapshot: snapshot, errorMessage: errorMessage) {
                 Task { await viewModel.refreshService(snapshot.serviceId) }
             }
         }
