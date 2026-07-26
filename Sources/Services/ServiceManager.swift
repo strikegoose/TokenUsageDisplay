@@ -14,8 +14,9 @@ actor ServiceManager {
     // MARK: - Configuration Management
 
     func loadConfigurations() {
-        let configs = ConfigurationStore.shared.load()
-        self.configurations = configs.filter(\.isEnabled)
+        // Keep disabled configs in memory too: every save writes this list back,
+        // so filtering them out here would silently delete them from disk.
+        self.configurations = ConfigurationStore.shared.load()
         // Also load any previously saved snapshots (window-suffixed ids included)
         let cached = ConfigurationStore.shared.loadAllCachedSnapshots()
         for config in self.configurations {
@@ -91,7 +92,7 @@ actor ServiceManager {
         defer { isRefreshing = false }
 
         await withTaskGroup(of: (String, Result<[UsageData], Error>).self) { group in
-            for config in configurations {
+            for config in configurations where config.isEnabled {
                 group.addTask { [config] in
                     let provider = makeProviderStatic(for: config)
                     do {

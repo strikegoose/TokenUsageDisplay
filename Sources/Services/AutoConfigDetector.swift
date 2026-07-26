@@ -103,10 +103,14 @@ enum AutoConfigDetector {
     // MARK: - Auto-config
 
     /// Run auto-detection and save configurations if not already present.
-    static func applyAutoConfig() async {
+    /// Safe to call on every launch: service types already configured
+    /// (enabled or disabled) are skipped. Returns true when something was added.
+    @discardableResult
+    static func applyAutoConfig() async -> Bool {
         let existing = ConfigurationStore.shared.load()
         let existingTypes = Set(existing.map(\.serviceType))
         let detected = detectAll()
+        var addedAny = false
 
         for item in detected {
             // Skip if already configured
@@ -124,11 +128,15 @@ enum AutoConfigDetector {
 
             // Save configuration
             await ServiceManager.shared.addConfiguration(config)
+            addedAny = true
             print("[AutoConfig] Added \(item.displayName)")
         }
 
-        // Reload and refresh
-        await ServiceManager.shared.loadConfigurations()
-        await ServiceManager.shared.refreshAll()
+        // Reload and refresh only when something changed
+        if addedAny {
+            await ServiceManager.shared.loadConfigurations()
+            await ServiceManager.shared.refreshAll()
+        }
+        return addedAny
     }
 }

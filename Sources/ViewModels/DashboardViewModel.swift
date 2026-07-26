@@ -107,15 +107,13 @@ final class DashboardViewModel {
 
         // Load existing configs
         await ServiceManager.shared.loadConfigurations()
-        var configs = await ServiceManager.shared.allConfigurations()
 
-        // Auto-configure on first launch
-        if configs.isEmpty {
-            await AutoConfigDetector.applyAutoConfig()
-            // Reload after auto-config
-            await ServiceManager.shared.loadConfigurations()
-            configs = await ServiceManager.shared.allConfigurations()
-        }
+        // Auto-detect on every launch, not just the first: services whose
+        // credentials appeared later (kimi CLI login, Claude Code settings,
+        // arkcli install) are picked up automatically. No-op otherwise.
+        await AutoConfigDetector.applyAutoConfig()
+        await ServiceManager.shared.loadConfigurations()
+        let configs = await ServiceManager.shared.allConfigurations()
 
         // Immediately fetch data if we have configured services
         if !configs.isEmpty {
