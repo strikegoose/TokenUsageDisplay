@@ -71,6 +71,52 @@ final class DashboardViewModel {
         return Int(maxUsed * 100)
     }
 
+    /// One representative percentage per service config, for the menu-bar
+    /// carousel. Each config's cards collapse to the number that matters most
+    /// (short rolling window preferred, else the highest used percentage),
+    /// mirroring `aggregatePercentage` but scoped per service.
+    struct ServiceSummary: Identifiable, Equatable {
+        let id: String           // config id (without window suffix)
+        let serviceType: ServiceType
+        let percentage: Int      // 0...100
+        let status: ServiceStatus
+    }
+
+    var serviceSummaries: [ServiceSummary] {
+        // Group by config id (the part before "#")
+        var groups: [String: [UsageData]] = [:]
+        var order: [String] = []
+        for snapshot in snapshots {
+            let key = snapshot.serviceId.components(separatedBy: "#").first ?? snapshot.serviceId
+            if groups[key] == nil { order.append(key) }
+            groups[key, default: []].append(snapshot)
+        }
+        return order.compactMap { key in
+            guard let cards = groups[key], let first = cards.first else { return nil }
+            let pct = Self.representativePercentage(of: cards)
+            // A config's overall status is its most severe card
+            let status = cards.map(\.status).max { a, b in
+                let rank: [ServiceStatus: Int] = [.ok: 0, .warning: 1, .critical: 2, .error: 3]
+                return (rank[a] ?? 0) < (rank[b] ?? 0)
+            } ?? first.status
+            return ServiceSummary(id: key, serviceType: first.serviceType, percentage: pct, status: status)
+        }
+    }
+
+    /// The percentage that best represents a single config's pressure:
+    /// short rolling windows win, otherwise the highest used percentage.
+    private static func representativePercentage(of cards: [UsageData]) -> Int {
+        let rolling = cards.filter { $0.serviceId.contains("#win") && !$0.isUnlimited }
+        if !rolling.isEmpty {
+            return Int((rolling.map(\.usagePercentage).max() ?? 0) * 100)
+        }
+        let usage = cards.filter { !$0.isUnlimited && $0.totalAmount > 0 }
+        if let maxUsed = usage.map(\.usagePercentage).max(), maxUsed > 0 {
+            return Int(maxUsed * 100)
+        }
+        return 0
+    }
+
     var hasAnyCritical: Bool {
         snapshots.contains { $0.status == .critical }
     }

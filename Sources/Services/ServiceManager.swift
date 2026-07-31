@@ -6,6 +6,7 @@ actor ServiceManager {
     private var configurations: [ServiceConfiguration] = []
     private var snapshots: [String: UsageData] = [:]  // keyed by config.id
     private var lastErrors: [String: String] = [:]    // keyed by config.id
+    private var lastActiveAt: [String: Date] = [:]    // config.id -> 最近用量变化时间（活跃优先排序）
     private var pollingTask: Task<Void, Never>?
     private var isRefreshing = false
 
@@ -37,6 +38,7 @@ actor ServiceManager {
         for key in snapshots.keys where key == id || key.hasPrefix("\(id)#") {
             snapshots.removeValue(forKey: key)
         }
+        lastActiveAt.removeValue(forKey: id)
         ConfigurationStore.shared.save(configurations: configurations)
         ConfigurationStore.shared.removeCachedSnapshots(for: id)
     }
@@ -55,9 +57,15 @@ actor ServiceManager {
     // MARK: - Snapshot Access
 
     func currentSnapshots() -> [UsageData] {
-        // Fixed service order (Kimi → DeepSeek → ARK, as declared in ServiceType),
-        // window-suffixed snapshots of one service stay together
+        // Recently active services first (most recent usage change wins), then
+        // fall back to the fixed enum order for a stable layout. Services that
+        // have never shown activity (e.g. an unused ARK) sink to the bottom.
         Array(snapshots.values).sorted { lhs, rhs in
+            let lKey = lhs.serviceId.components(separatedBy: "#").first ?? lhs.serviceId
+            let rKey = rhs.serviceId.components(separatedBy: "#").first ?? rhs.serviceId
+            let lActive = lastActiveAt[lKey] ?? .distantPast
+            let rActive = lastActiveAt[rKey] ?? .distantPast
+            if lActive != rActive { return lActive > rActive }
             let li = ServiceType.allCases.firstIndex(of: lhs.serviceType) ?? 0
             let ri = ServiceType.allCases.firstIndex(of: rhs.serviceType) ?? 0
             if li != ri { return li < ri }
@@ -114,6 +122,12 @@ actor ServiceManager {
                 switch result {
                 case .success(let usages):
                     lastErrors[id] = nil
+                    // Detect real usage changes (used/total moved) to drive
+                    // "recently active first" ordering. A service whose numbers
+                    // are still shifting is one the user is actively using.
+                    if Self.usageChanged(id: id, new: usages, in: snapshots) {
+                        lastActiveAt[id] = Date()
+                    }
                     // Drop any legacy unsuffixed snapshot for this config
                     // (single-card era stored snapshots under the bare config id)
                     if !usages.contains(where: { $0.serviceId == id }) {
@@ -161,6 +175,9 @@ actor ServiceManager {
                 throw ServiceError.notConfigured
             }
             let usages = try await provider.fetchUsage(apiKey: apiKey)
+            if Self.usageChanged(id: configId, new: usages, in: snapshots) {
+                lastActiveAt[configId] = Date()
+            }
             for usage in usages {
                 snapshots[usage.serviceId] = usage
                 ConfigurationStore.shared.cacheSnapshot(usage)
@@ -212,7 +229,23 @@ actor ServiceManager {
             return DeepSeekProvider(config: config)
         case .ark:
             return ARKProvider(config: config)
+        case .zhipu:
+            return ZhipuProvider(config: config)
         }
+    }
+
+    /// True when any incoming card's used/total differs from the stored one.
+    /// A change means the user is actively consuming the service (used climbed
+    /// for quota-based services, or balance dropped for wallet-based ones).
+    private static func usageChanged(id: String, new: [UsageData], in snapshots: [String: UsageData]) -> Bool {
+        for card in new {
+            if let prev = snapshots[card.serviceId] {
+                if prev.usedAmount != card.usedAmount || prev.totalAmount != card.totalAmount {
+                    return true
+                }
+            }
+        }
+        return false
     }
 }
 
@@ -225,5 +258,7 @@ private func makeProviderStatic(for config: ServiceConfiguration) -> any Service
         return DeepSeekProvider(config: config)
     case .ark:
         return ARKProvider(config: config)
+    case .zhipu:
+        return ZhipuProvider(config: config)
     }
 }

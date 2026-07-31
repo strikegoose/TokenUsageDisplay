@@ -72,6 +72,16 @@ enum AutoConfigDetector {
             ))
         }
 
+        // 4. 智谱 — ZCode local config (GLM Coding Plan API key)
+        if ZhipuAuthManager.isConfigured {
+            results.append(AutoConfigResult(
+                serviceType: .zhipu,
+                displayName: "智谱",
+                apiKey: nil,
+                keychainKey: nil
+            ))
+        }
+
         return results
     }
 

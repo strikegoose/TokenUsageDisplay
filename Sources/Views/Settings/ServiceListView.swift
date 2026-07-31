@@ -145,6 +145,7 @@ struct ServiceRow: View {
         case .kimi:     return .purple
         case .deepseek: return .blue
         case .ark:      return .orange
+        case .zhipu:    return .teal
         }
     }
 }

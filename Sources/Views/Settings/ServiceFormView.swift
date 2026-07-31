@@ -18,6 +18,7 @@ struct ServiceFormView: View {
 
     // Local auth detection
     @State private var kimiAuthAvailable = false
+    @State private var zhipuAuthAvailable = false
     @State private var arkcliAvailable = false
     @State private var arkAuthValid = false
 
@@ -190,6 +191,8 @@ struct ServiceFormView: View {
             deepseekAuthView
         case .ark:
             arkAuthView
+        case .zhipu:
+            zhipuAuthView
         }
     }
 
@@ -209,6 +212,33 @@ struct ServiceFormView: View {
             }
             Spacer()
             if kimiAuthAvailable {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                    .font(.system(size: 16))
+            } else {
+                Button("重新检测") { checkLocalAuth() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    private var zhipuAuthView: some View {
+        HStack {
+            Image(systemName: zhipuAuthAvailable ? "checkmark.shield.fill" : "xmark.shield.fill")
+                .foregroundColor(zhipuAuthAvailable ? .green : .orange)
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(zhipuAuthAvailable ? "ZCode 智谱配置已就绪" : "未检测到 ZCode 智谱配置")
+                    .font(.system(size: 13, weight: .medium))
+                Text(zhipuAuthAvailable
+                     ? "使用 ~/.zcode/v2/config.json 中的 API Key 自动鉴权"
+                     : "请先在 ZCode 中登录智谱 GLM Coding Plan")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            if zhipuAuthAvailable {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
                     .font(.system(size: 16))
@@ -295,6 +325,9 @@ struct ServiceFormView: View {
         case .ark:
             Text("已登录 arkcli 时自动复用其 SSO 凭证查询费用中心可用余额，无需填写；填入 AK/SK 则优先使用（建议 IAM 子账号 + 费用中心只读权限）。")
                 .font(.system(size: 10))
+        case .zhipu:
+            Text("智谱 GLM Coding Plan 自动读取 ZCode 配置（~/.zcode/v2/config.json）中的 API Key 查询配额用量，无需手动输入。")
+                .font(.system(size: 10))
         }
     }
 
@@ -307,6 +340,7 @@ struct ServiceFormView: View {
         case .ark:      return (!apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             && !secretKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             || arkAuthValid
+        case .zhipu:    return zhipuAuthAvailable
         }
     }
 
@@ -321,6 +355,8 @@ struct ServiceFormView: View {
         case .ark:
             arkcliAvailable = (try? ARKCLIExecutor.shared.findPath()) != nil
             arkAuthValid = arkcliAvailable && ((try? ARKCLIExecutor.shared.checkAuth()) ?? false)
+        case .zhipu:
+            zhipuAuthAvailable = ZhipuAuthManager.isConfigured
         }
     }
 
@@ -399,6 +435,7 @@ struct ServiceFormView: View {
         case .kimi:     return KimiProvider(config: config)
         case .deepseek: return DeepSeekProvider(config: config)
         case .ark:      return ARKProvider(config: config)
+        case .zhipu:    return ZhipuProvider(config: config)
         }
     }
 }

@@ -2,3 +2,4 @@
 TokenUsageDisplay.app/
 .DS_Store
 *.xcuserdata
+.zcode/

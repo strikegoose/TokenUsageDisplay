@@ -12,6 +12,11 @@ final class StatusBarController: @unchecked Sendable {
     private var viewModel: DashboardViewModel?
     private var eventMonitor: Any?
 
+    /// Menu-bar carousel: cycles through services so each one's usage shows
+    /// in turn instead of collapsing to a single aggregate.
+    private var carouselIndex = 0
+    private var carouselTimer: Timer?
+
     private init() {}
 
     func setup(with viewModel: DashboardViewModel) {
@@ -86,22 +91,47 @@ final class StatusBarController: @unchecked Sendable {
 
     // MARK: - Icon
 
-    /// Colored dot + optional used-percentage text, rendered as an
-    /// attributed title so colors survive the menu bar's template rendering.
+    /// Colored dot + the current carousel service's short label and percentage,
+    /// rendered as an attributed title so colors survive the menu bar's template
+    /// rendering. When only one service exists (or none), this collapses to the
+    /// legacy single-value look.
     private func refreshIcon() {
         guard let button = statusItem?.button, let viewModel else { return }
 
+        let summaries = viewModel.serviceSummaries
+
+        // Empty state — just a gray dot.
+        if summaries.isEmpty {
+            button.attributedTitle = NSAttributedString(string: "●", attributes: [
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .font: NSFont.systemFont(ofSize: 9)
+            ])
+            stopCarousel()
+            return
+        }
+
+        // Single service — no need to carousel, show label + percentage.
+        if summaries.count == 1 {
+            stopCarousel()
+            renderServiceIcon(summaries[0])
+            return
+        }
+
+        // Multiple services — keep the carousel running and render the current slot.
+        startCarousel(count: summaries.count)
+        let clamped = min(carouselIndex, summaries.count - 1)
+        renderServiceIcon(summaries[clamped])
+    }
+
+    /// Renders `● <label> <percentage>%` for one service summary.
+    private func renderServiceIcon(_ summary: DashboardViewModel.ServiceSummary) {
+        // Apple-style: healthy stays monochrome, color means attention needed
         let color: NSColor
-        if viewModel.snapshots.isEmpty {
-            color = .secondaryLabelColor
-        } else {
-            switch viewModel.worstStatus {
-            // Apple-style: healthy stays monochrome, color means attention needed
-            case .ok:       color = .labelColor
-            case .warning:  color = .systemOrange
-            case .critical: color = .systemRed
-            case .error:    color = .systemOrange
-            }
+        switch summary.status {
+        case .ok:       color = .labelColor
+        case .warning:  color = .systemOrange
+        case .critical: color = .systemRed
+        case .error:    color = .systemOrange
         }
 
         let title = NSMutableAttributedString(string: "●", attributes: [
@@ -109,13 +139,38 @@ final class StatusBarController: @unchecked Sendable {
             .font: NSFont.systemFont(ofSize: 9)
         ])
 
-        if SettingsStore.shared.settings.showPercentageInMenuBar, !viewModel.snapshots.isEmpty {
-            title.append(NSAttributedString(string: " \(viewModel.aggregatePercentage)%", attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        if SettingsStore.shared.settings.showPercentageInMenuBar {
+            title.append(NSAttributedString(string: " \(summary.serviceType.shortLabel) \(summary.percentage)%", attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: NSColor.labelColor,
             ]))
         }
 
-        button.attributedTitle = title
+        statusItem?.button?.attributedTitle = title
+    }
+
+    // MARK: - Carousel
+
+    private func startCarousel(count: Int) {
+        guard carouselTimer == nil else { return }
+        let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self, let viewModel = self.viewModel else { return }
+                let summaries = viewModel.serviceSummaries
+                guard summaries.count > 1 else { self.stopCarousel(); return }
+                self.carouselIndex = (self.carouselIndex + 1) % summaries.count
+                self.renderServiceIcon(summaries[self.carouselIndex])
+            }
+        }
+        // Run on the common mode so it keeps firing while the popover/menu is open.
+        RunLoop.main.add(timer, forMode: .common)
+        carouselTimer = timer
+    }
+
+    private func stopCarousel() {
+        carouselTimer?.invalidate()
+        carouselTimer = nil
+        carouselIndex = 0
     }
 
     /// Re-render the icon whenever the underlying values change.
