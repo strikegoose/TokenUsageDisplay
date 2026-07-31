@@ -71,14 +71,15 @@ final class DashboardViewModel {
         return Int(maxUsed * 100)
     }
 
-    /// One representative percentage per service config, for the menu-bar
-    /// carousel. Each config's cards collapse to the number that matters most
-    /// (short rolling window preferred, else the highest used percentage),
-    /// mirroring `aggregatePercentage` but scoped per service.
+    /// One representative figure per service config, for the menu-bar carousel.
+    /// Each config's cards collapse to the value that matters most. Quota-based
+    /// services (Kimi / 智谱) yield a used percentage; balance-based services
+    /// (DeepSeek / ARK) yield a formatted balance — the carousel renders
+    /// `menuBarText` and does not need to know the difference.
     struct ServiceSummary: Identifiable, Equatable {
         let id: String           // config id (without window suffix)
         let serviceType: ServiceType
-        let percentage: Int      // 0...100
+        let menuBarText: String  // ready-to-show value, e.g. "6%" or "¥59.26"
         let status: ServiceStatus
     }
 
@@ -93,14 +94,37 @@ final class DashboardViewModel {
         }
         return order.compactMap { key in
             guard let cards = groups[key], let first = cards.first else { return nil }
-            let pct = Self.representativePercentage(of: cards)
             // A config's overall status is its most severe card
             let status = cards.map(\.status).max { a, b in
                 let rank: [ServiceStatus: Int] = [.ok: 0, .warning: 1, .critical: 2, .error: 3]
                 return (rank[a] ?? 0) < (rank[b] ?? 0)
             } ?? first.status
-            return ServiceSummary(id: key, serviceType: first.serviceType, percentage: pct, status: status)
+            let text = Self.isBalanceMode(cards)
+                ? Self.representativeBalanceText(of: cards)
+                : "\(Self.representativePercentage(of: cards))%"
+            return ServiceSummary(id: key, serviceType: first.serviceType, menuBarText: text, status: status)
         }
+    }
+
+    /// A config is "balance mode" when none of its cards track usage — i.e. all
+    /// cards report zero used (DeepSeek / ARK store the balance as totalAmount).
+    private static func isBalanceMode(_ cards: [UsageData]) -> Bool {
+        cards.allSatisfy { $0.usedAmount <= 0 }
+    }
+
+    /// The most useful balance to surface: the largest remaining balance among
+    /// the config's cards, formatted with its currency/token unit.
+    private static func representativeBalanceText(of cards: [UsageData]) -> String {
+        let card = cards.max(by: { $0.remainingAmount < $1.remainingAmount }) ?? cards[0]
+        let amount = card.remainingAmount
+        let unit = card.unitLabel
+        if unit == "¥" || unit == "$" || unit == "CNY" {
+            return String(format: "%@%.2f", unit, amount)
+        }
+        if unit == "tokens" {
+            return FormattingHelpers.formatTokens(amount)
+        }
+        return "\(FormattingHelpers.formatTokens(amount)) \(unit)"
     }
 
     /// The percentage that best represents a single config's pressure:

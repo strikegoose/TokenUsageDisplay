@@ -140,7 +140,7 @@ final class StatusBarController: @unchecked Sendable {
         ])
 
         if SettingsStore.shared.settings.showPercentageInMenuBar {
-            title.append(NSAttributedString(string: " \(summary.serviceType.shortLabel) \(summary.percentage)%", attributes: [
+            title.append(NSAttributedString(string: " \(summary.serviceType.shortLabel) \(summary.menuBarText)", attributes: [
                 .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
                 .foregroundColor: NSColor.labelColor,
             ]))
