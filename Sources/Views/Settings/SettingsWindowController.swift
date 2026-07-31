@@ -35,8 +35,12 @@ final class SettingsWindowController: @unchecked Sendable {
     }
 
     func close() {
-        window?.close()
+        // Clear the reference first: closing the window re-enters this method
+        // via windowWillClose, and a non-nil window would recurse until the
+        // stack overflows (SIGSEGV).
+        let closing = window
         window = nil
+        closing?.close()
     }
 }
 
