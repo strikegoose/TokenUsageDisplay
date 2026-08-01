@@ -120,16 +120,15 @@ struct ZhipuProvider: ServiceProvider, Sendable {
     // MARK: - Parsing helpers
 
     /// Maps a limit's unit/number to a human-readable window label.
-    /// unit=3 → 5-hour rolling window; unit=6 → monthly quota (empirically observed).
+    /// unit=3 → N-hour rolling window (~5h reset); unit=6 → weekly quota
+    /// (~7-day reset, verified from nextResetTime).
     private static func limitLabel(for limit: QuotaResponse.Limit) -> String {
-        // Prefer the percentage hint the server already computed, but the label
-        // comes from the quota window semantics (unit + number).
         switch limit.unit {
         case 3:
             let hours = limit.number ?? 5
             return "\(hours)小时额度"
         case 6:
-            return "月度额度"
+            return "周额度"
         default:
             if let number = limit.number {
                 return "额度\(number)"
