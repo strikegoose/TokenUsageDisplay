@@ -8,7 +8,7 @@
 
 ## 一、当前状态（一句话）
 
-公开仓隐私治理的**代码/文档改动已完成本地提交** `efc9235`，**尚未推到 GitHub**（本机代理未开，Cursor 推送超时）。请 CC **优先 `git push`**，再按需处理下方可选跟进。
+公开仓隐私治理的**代码/文档改动已完成本地提交**（含 `efc9235` 打码与本 BRIDGE），**尚未推到 GitHub**（本机代理未开，Cursor 推送超时）。请 CC **优先 `git push`**，再按需处理下方可选跟进。
 
 ---
 
@@ -20,8 +20,8 @@
 | README 措辞 | ✅ 「加密存于本地」→「明文文件 + 权限 0600」；注明截图为演示数据 | `README.md` |
 | `.gitignore` | ✅ 增补 `.env` / `.env.*` / `*.pem` / `*.key` / `*.p12` / `*.pfx` | `.gitignore` |
 | 截图打码 | ✅ `docs/images/screenshot.png` 余额/用量/重置时间改为演示值（¥12.34 / ¥56.78、18%/32%、假日期），进度条同步 | 同文件；OCR 已复核无 `¥58.46`/`¥98.40` |
-| 本地提交 | ✅ `efc9235` `docs: 打码 README 截图并修正密钥存储说明` | `git log -1` |
-| 推送 GitHub | ❌ 失败 | `origin/main` **ahead 1**；代理 `127.0.0.1:15236` 当时未监听 |
+| 本地提交 | ✅ `efc9235` 打码截图+README/.gitignore；其后提交含本 BRIDGE | `git log` / `git status -sb` |
+| 推送 GitHub | ❌ 失败 | `main` 领先 `origin/main`；代理 `127.0.0.1:15236` 当时未监听 |
 
 ### 相关前序结论（未改代码，供 CC 知情）
 
@@ -38,11 +38,11 @@
 1. **确认代理可用后推送**
    ```bash
    cd ~/Claude/personal/TokenUsageDisplay
-   git status -sb          # 期望：ahead 1，working tree clean
+   git status -sb          # 期望：领先 origin，working tree clean
    git push origin HEAD    # 默认走 origin=GitHub；勿绕过代理
    git status -sb          # 期望：与 origin/main 同步
    ```
-2. 推送成功后，在本文「实现方回复区」回贴：commit SHA、远程是否已含打码截图。
+2. 推送成功后，在本文「实现方回复区」回贴：已推送的 commit SHA、远程是否已含打码截图与本 BRIDGE。
 
 ### P1 — 建议（不阻塞推送）
 
@@ -61,7 +61,7 @@
 
 ## 四、给创始人转 CC 的一句话（≤100 字）
 
-> 读 `personal/TokenUsageDisplay/BRIDGE.md`：本地 `efc9235` 待推 GitHub；代理起来后 `git push origin HEAD`，回贴实现方回复区。可选：轮换 kimicode AK。
+> 读 `personal/TokenUsageDisplay/BRIDGE.md`：本地有未推送提交；代理起来后 `git push origin HEAD`，回贴实现方回复区。可选：轮换 kimicode AK。
 
 ---
 
