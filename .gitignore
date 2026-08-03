@@ -3,3 +3,11 @@ TokenUsageDisplay.app/
 .DS_Store
 *.xcuserdata
 .zcode/
+
+# Secrets / local credentials — never commit
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx

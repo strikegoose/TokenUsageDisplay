@@ -43,10 +43,11 @@ open TokenUsageDisplay.app
 
 ## 数据安全
 
-- 所有配置与凭证只保存在本机 `~/.config/tokenusage/`，密钥文件权限 0600
+- 所有配置与凭证只保存在本机 `~/.config/tokenusage/`，不上传、不进 git
 - Kimi 复用 `~/.kimi-code/` 的 OAuth token；火山方舟复用 `~/.arkcli/` 的 STS 临时凭证；智谱复用 `~/.zcode/v2/config.json` 的 API Key——均为本地只读复用
-- DeepSeek / 阿里云需手动填 Key（阿里云填 RAM 子账号 AccessKey），加密存于本地 `~/.config/tokenusage/keys/`（权限 0600）
+- DeepSeek / 阿里云需手动填 Key（阿里云填 RAM 子账号 AccessKey），以明文文件保存在 `~/.config/tokenusage/keys/`（权限 0600，仅当前用户可读）
 - 网络请求只发往各服务官方 API，无任何第三方上报
+- README 截图中的余额与用量为演示数据，已打码，不代表真实账户
 
 ## License
 
