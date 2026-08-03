@@ -16,8 +16,14 @@ struct SettingsView: View {
                     Label("服务", systemImage: "server.rack")
                 }
                 .tag("services")
+
+            CCProfileListView()
+                .tabItem {
+                    Label("模型切换", systemImage: "arrow.triangle.swap")
+                }
+                .tag("ccswitch")
         }
-        .frame(width: 480, height: 400)
+        .frame(width: 480, height: 440)
     }
 }
 

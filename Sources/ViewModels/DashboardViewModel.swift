@@ -185,6 +185,10 @@ final class DashboardViewModel {
         await ServiceManager.shared.loadConfigurations()
         let configs = await ServiceManager.shared.allConfigurations()
 
+        // Seed Claude Code provider profiles (DeepSeek + GLM) on first launch,
+        // inferring the current DeepSeek token from the live settings.json.
+        CCConfigSwitcher.ensureDefaultProfiles()
+
         // Immediately fetch data if we have configured services
         if !configs.isEmpty {
             await ServiceManager.shared.refreshAll()

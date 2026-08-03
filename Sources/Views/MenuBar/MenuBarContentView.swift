@@ -3,6 +3,9 @@ import SwiftUI
 struct MenuBarContentView: View {
     @Environment(DashboardViewModel.self) private var viewModel
     @State private var hoveredServiceId: String?
+    @State private var ccProfiles: [CCProviderProfile] = []
+    @State private var ccActiveId: String?
+    @State private var ccSwitchError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,6 +44,7 @@ struct MenuBarContentView: View {
         .background(.ultraThinMaterial)
         .onAppear {
             Task { await viewModel.onAppear() }
+            reloadCCProfiles()
         }
     }
 
@@ -90,6 +94,7 @@ struct MenuBarContentView: View {
                 Text("\(viewModel.serviceCount) 个服务 · \(viewModel.lastRefreshText())")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
+                ccProviderMenu
             }
 
             Spacer()
@@ -117,6 +122,58 @@ struct MenuBarContentView: View {
                     .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
             }
         }
+    }
+
+    // MARK: - Claude Code Provider Switch
+
+    /// Inline provider switcher in the popover header. Clicking shows a menu
+    /// of stored profiles; selecting one switches immediately.
+    private var ccProviderMenu: some View {
+        Menu {
+            ForEach(ccProfiles) { profile in
+                Button {
+                    switchTo(profile)
+                } label: {
+                    if profile.id == ccActiveId {
+                        Label(profile.name, systemImage: "checkmark")
+                    } else {
+                        Text(profile.name)
+                    }
+                }
+            }
+            Divider()
+            Button("管理…") { SettingsWindowController.shared.show() }
+        } label: {
+            HStack(spacing: 3) {
+                Text("Claude Code：\(activeCCName)")
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 8))
+            }
+            .font(.system(size: 10))
+            .foregroundColor(ccSwitchError != nil ? .red : .secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+    }
+
+    private var activeCCName: String {
+        ccProfiles.first(where: { $0.id == ccActiveId })?.name
+            ?? CCConfigSwitcher.activeDisplayName()
+    }
+
+    private func switchTo(_ profile: CCProviderProfile) {
+        do {
+            _ = try CCConfigSwitcher.switchTo(profile)
+            ccActiveId = profile.id
+            ccSwitchError = nil
+        } catch {
+            ccSwitchError = error.localizedDescription
+        }
+    }
+
+    private func reloadCCProfiles() {
+        ccProfiles = CCConfigSwitcher.loadProfiles()
+        ccActiveId = CCConfigSwitcher.detectActiveProfile()?.id
     }
 
     // MARK: - Empty State
