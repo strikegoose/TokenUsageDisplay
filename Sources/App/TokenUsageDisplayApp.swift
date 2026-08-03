@@ -59,9 +59,18 @@ final class StatusBarController: @unchecked Sendable {
         if popover.isShown {
             closePopover()
         } else {
+            fitPopoverToContent()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             startMonitoringOutsideClicks()
         }
+    }
+
+    /// Resizes the popover to fit all cards (capped at screen height). Called
+    /// on open and whenever snapshots change while open, so a newly-added or
+    /// freshly-loaded service never sits below the fold.
+    private func fitPopoverToContent() {
+        let height = MenuBarSizing.contentHeight(for: viewModel?.snapshots ?? [])
+        popover.contentSize = NSSize(width: MenuBarSizing.width, height: height)
     }
 
     private func closePopover() {
@@ -184,6 +193,7 @@ final class StatusBarController: @unchecked Sendable {
         } onChange: { [weak self] in
             DispatchQueue.main.async {
                 self?.refreshIcon()
+                if self?.popover.isShown == true { self?.fitPopoverToContent() }
                 self?.observeViewModel()
             }
         }

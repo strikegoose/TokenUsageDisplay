@@ -31,7 +31,6 @@ struct MenuBarContentView: View {
                     }
                     .padding(12)
                 }
-                .frame(maxHeight: 400)
             }
 
             Divider()
@@ -242,4 +241,59 @@ struct MenuBarContentView: View {
         }
     }
 
+}
+
+// MARK: - Auto-fit sizing
+
+/// Auto-fits the menu-bar popover/panel height to the number of service cards
+/// so every card is visible without scrolling. The ScrollView only takes over
+/// once the list outgrows the screen. Used by StatusBarController (popover)
+/// and HotkeyManager (floating panel).
+enum MenuBarSizing {
+    static let width: CGFloat = 360
+
+    static func contentHeight(for snapshots: [UsageData]) -> CGFloat {
+        let header: CGFloat = 52      // header view + divider
+        let bottom: CGFloat = 44      // divider + bottom action bar
+        let listPadding: CGFloat = 24 // ScrollView VStack .padding(12) × 2
+        let groupSpacing: CGFloat = 8 // VStack(spacing: 8) between cards
+        let safety: CGFloat = 12      // guard against estimate drift clipping the last card
+
+        var order: [String] = []
+        var groups: [String: [UsageData]] = [:]
+        for s in snapshots {
+            let key = s.serviceId.components(separatedBy: "#").first ?? s.serviceId
+            if groups[key] == nil { order.append(key) }
+            groups[key, default: []].append(s)
+        }
+
+        var cards: CGFloat = 0
+        for key in order { cards += cardHeight(groups[key] ?? []) }
+        cards += groupSpacing * CGFloat(max(0, order.count - 1))
+
+        let natural = header + listPadding + cards + bottom + safety
+        let screenMax = (NSScreen.main?.visibleFrame.height ?? 820) - 60
+        return min(max(natural, 300), screenMax)
+    }
+
+    /// Estimated height of one card (single or grouped), mirroring the layouts
+    /// in ServiceCardView / GroupedServiceCardView. Close enough to never clip;
+    /// the ScrollView is the backstop if estimates drift.
+    private static func cardHeight(_ group: [UsageData]) -> CGFloat {
+        let pad: CGFloat = 24
+        if group.count > 1 {
+            let headerRow: CGFloat = 28
+            let innerSpacing: CGFloat = 10
+            let perWindow: CGFloat = 24
+            let windowSpacing: CGFloat = 8
+            let n = CGFloat(group.count)
+            return pad + headerRow + innerSpacing + perWindow * n + windowSpacing * (n - 1)
+        }
+        guard let s = group.first else { return 0 }
+        let isBalance = s.usedAmount <= 0
+        var h: CGFloat = pad + 28 + 8 + 14   // padding + header row + spacing + detail row
+        if !isBalance { h += 8 + 6 }          // progress bar (+ spacing)
+        if s.resetTime != nil { h += 8 + 14 } // reset-time row (+ spacing)
+        return h
+    }
 }
