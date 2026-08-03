@@ -134,9 +134,9 @@ struct ServiceFormView: View {
                         apiKey = AutoConfigDetector.readAPIKeyFromFile(for: config)
                             ?? (try? KeychainManager.shared.read(account: config.keychainAccount))
                             ?? ""
-                    } else if config.serviceType == .ark,
+                    } else if config.serviceType.usesAKSK,
                               let stored = AutoConfigDetector.readAPIKeyFromFile(for: config),
-                              let creds = ARKProvider.parseCredentials(from: stored) {
+                              let creds = Self.parseAKSKJSON(stored) {
                         apiKey = creds.ak
                         secretKey = creds.sk
                     }
@@ -190,9 +190,15 @@ struct ServiceFormView: View {
         case .deepseek:
             deepseekAuthView
         case .ark:
-            arkAuthView
+            akskAuthView(label: "火山引擎 AK / SK",
+                         subtitle: "(用于查询费用中心可用余额)",
+                         akHint: "Access Key (AK 开头)")
         case .zhipu:
             zhipuAuthView
+        case .aliyun:
+            akskAuthView(label: "阿里云 AccessKey ID / Secret",
+                         subtitle: "(用于查询费用中心账户余额)",
+                         akHint: "AccessKey ID (LTAI 开头)")
         }
     }
 
@@ -280,22 +286,24 @@ struct ServiceFormView: View {
         }
     }
 
-    private var arkAuthView: some View {
+    /// Shared Access Key / Secret Key entry — used by 火山 ARK and 阿里云.
+    @ViewBuilder
+    private func akskAuthView(label: String, subtitle: String, akHint: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("火山引擎 AK / SK")
+                Text(label)
                     .font(.system(size: 12, weight: .medium))
-                Text("(用于查询费用中心可用余额)")
+                Text(subtitle)
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
             }
             HStack {
                 if showApiKey {
-                    TextField("Access Key (AK 开头)", text: $apiKey)
+                    TextField(akHint, text: $apiKey)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 13, design: .monospaced))
                 } else {
-                    SecureField("Access Key (AK 开头)", text: $apiKey)
+                    SecureField(akHint, text: $apiKey)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 13, design: .monospaced))
                 }
@@ -328,6 +336,9 @@ struct ServiceFormView: View {
         case .zhipu:
             Text("智谱 GLM Coding Plan 自动读取 ZCode 配置（~/.zcode/v2/config.json）中的 API Key 查询配额用量，无需手动输入。")
                 .font(.system(size: 10))
+        case .aliyun:
+            Text("阿里云 AccessKey 用于查询费用中心账户余额，保存在 ~/.config/tokenusage/keys/ 下的本地文件中（权限 600）。建议 RAM 子账号 + AliyunBSSReadOnlyAccess 权限。")
+                .font(.system(size: 10))
         }
     }
 
@@ -341,6 +352,8 @@ struct ServiceFormView: View {
                             && !secretKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             || arkAuthValid
         case .zhipu:    return zhipuAuthAvailable
+        case .aliyun:   return !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            && !secretKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
 
@@ -357,6 +370,8 @@ struct ServiceFormView: View {
             arkAuthValid = arkcliAvailable && ((try? ARKCLIExecutor.shared.checkAuth()) ?? false)
         case .zhipu:
             zhipuAuthAvailable = ZhipuAuthManager.isConfigured
+        case .aliyun:
+            break  // Manual AccessKey entry — no local auth to detect
         }
     }
 
@@ -371,10 +386,10 @@ struct ServiceFormView: View {
             let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
             let sk = secretKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            // ARK provider expects the credentials as a JSON payload; others take the plain key
+            // AK/SK providers (ARK, 阿里云) expect a JSON payload; others take the plain key
             let credentialPayload: String
-            if serviceType == .ark {
-                credentialPayload = Self.makeARKCredentialJSON(ak: key, sk: sk)
+            if serviceType.usesAKSK {
+                credentialPayload = Self.makeAKSKCredentialJSON(ak: key, sk: sk)
             } else {
                 credentialPayload = key
             }
@@ -405,17 +420,28 @@ struct ServiceFormView: View {
             AutoConfigDetector.saveAPIKeyToFile(key: key, for: config)
             // Clean up any legacy Keychain entry so it can't go stale
             try? KeychainManager.shared.delete(account: config.keychainAccount)
-        } else if serviceType == .ark && !key.isEmpty && !sk.isEmpty {
-            AutoConfigDetector.saveAPIKeyToFile(key: Self.makeARKCredentialJSON(ak: key, sk: sk), for: config)
+        } else if serviceType.usesAKSK && !key.isEmpty && !sk.isEmpty {
+            AutoConfigDetector.saveAPIKeyToFile(key: Self.makeAKSKCredentialJSON(ak: key, sk: sk), for: config)
         }
 
         onSave(config)
     }
 
-    /// Serializes ARK AK/SK as the JSON payload the provider expects.
-    private static func makeARKCredentialJSON(ak: String, sk: String) -> String {
+    /// Serializes AK/SK as the {"ak","sk"} JSON payload the provider expects (ARK, 阿里云).
+    private static func makeAKSKCredentialJSON(ak: String, sk: String) -> String {
         guard let data = try? JSONEncoder().encode(["ak": ak, "sk": sk]) else { return "" }
         return String(decoding: data, as: UTF8.self)
+    }
+
+    /// Parses a stored {"ak","sk"} JSON key file back into its parts.
+    private static func parseAKSKJSON(_ stored: String) -> (ak: String, sk: String)? {
+        guard let data = stored.data(using: .utf8),
+              let json = try? JSONDecoder().decode([String: String].self, from: data),
+              let ak = json["ak"], let sk = json["sk"],
+              !ak.isEmpty, !sk.isEmpty else {
+            return nil
+        }
+        return (ak, sk)
     }
 
     private func makeConfiguration() -> ServiceConfiguration {
@@ -436,6 +462,7 @@ struct ServiceFormView: View {
         case .deepseek: return DeepSeekProvider(config: config)
         case .ark:      return ARKProvider(config: config)
         case .zhipu:    return ZhipuProvider(config: config)
+        case .aliyun:   return AliyunProvider(config: config)
         }
     }
 }

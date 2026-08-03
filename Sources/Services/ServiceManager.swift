@@ -231,6 +231,8 @@ actor ServiceManager {
             return ARKProvider(config: config)
         case .zhipu:
             return ZhipuProvider(config: config)
+        case .aliyun:
+            return AliyunProvider(config: config)
         }
     }
 
@@ -260,5 +262,7 @@ private func makeProviderStatic(for config: ServiceConfiguration) -> any Service
         return ARKProvider(config: config)
     case .zhipu:
         return ZhipuProvider(config: config)
+    case .aliyun:
+        return AliyunProvider(config: config)
     }
 }

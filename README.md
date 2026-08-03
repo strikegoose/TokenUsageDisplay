@@ -1,6 +1,6 @@
 # TokenUsageDisplay
 
-macOS 状态栏小工具：把 Kimi / DeepSeek / 火山方舟的额度钉在状态栏上，快用完时一眼可见。
+macOS 状态栏小工具：把 Kimi / DeepSeek / 火山方舟 / 智谱 / 阿里云 的额度与余额钉在状态栏上，快用完时一眼可见。
 
 ![状态栏与面板截图](docs/images/screenshot.png)
 
@@ -14,6 +14,8 @@ macOS 状态栏小工具：把 Kimi / DeepSeek / 火山方舟的额度钉在状�
 - **Kimi Coding Plan**：自动复用 kimi CLI 的本地登录态（OAuth），零配置开箱即用；周配额 / 滚动窗口 / 月配额 / 加油包多窗口分组展示，按重置时间排序；状态栏百分比优先显示"最先咬人"的短窗口
 - **DeepSeek**：账户余额监控；可手动填 API Key，也能自动从 Claude Code 的配置里识别
 - **火山方舟 ARK**：账户余额；支持手动 AK/SK，也能自动复用 arkcli SSO 登录的 STS 临时凭证（临期自动续签）
+- **智谱 GLM Coding Plan**：自动复用 ZCode 的本地登录态，查询周额度 / 滚动窗口配额用量，无需手动填 Key
+- **阿里云**：账户余额监控；手动填 RAM 子账号 AccessKey（建议 AliyunBSSReadOnlyAccess 只读权限），调用费用中心 QueryAccountBalance
 - **Cmd+Shift+T** 全局热键呼出浮动面板（Carbon 热键，无需辅助功能权限）
 - 自动刷新（1 分钟 ~ 1 小时可调）、开机自启动、全中文界面
 
@@ -42,7 +44,8 @@ open TokenUsageDisplay.app
 ## 数据安全
 
 - 所有配置与凭证只保存在本机 `~/.config/tokenusage/`，密钥文件权限 0600
-- Kimi 复用 `~/.kimi-code/` 的 OAuth token；火山方舟复用 `~/.arkcli/` 的 STS 临时凭证——均为本地只读复用
+- Kimi 复用 `~/.kimi-code/` 的 OAuth token；火山方舟复用 `~/.arkcli/` 的 STS 临时凭证；智谱复用 `~/.zcode/v2/config.json` 的 API Key——均为本地只读复用
+- DeepSeek / 阿里云需手动填 Key（阿里云填 RAM 子账号 AccessKey），加密存于本地 `~/.config/tokenusage/keys/`（权限 0600）
 - 网络请求只发往各服务官方 API，无任何第三方上报
 
 ## License
