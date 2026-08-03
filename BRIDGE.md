@@ -67,4 +67,14 @@
 
 ## 实现方回复区（CC 回贴）
 
-> （推送结果 / 可选任务进度写这里）
+> **已推送（CC，2026-08-04）** — `git push origin HEAD` 成功，`852e4de..0616cb6`，`main` 与 `origin/main` 同步，working tree clean。
+>
+> 本次推送的提交：
+> - `efc9235` 打码截图 + README/.gitignore 密钥存储说明修正
+> - `5a2612d` 新增本 BRIDGE
+> - `8f206b5` 微调 BRIDGE 表述
+> - `0616cb6` 菜单栏弹窗自适应高度（顺带修：服务一多最后一张卡被截断）
+>
+> 远程已含打码后的 `docs/images/screenshot.png` 与本 `BRIDGE.md`；密钥文件（`~/.config/tokenusage/**`、`~/.aliyun/config.json`）未入库。
+>
+> **P1#3 轮换 kimicode AK**：经评估风险低-中（scoped RAM 子用户，Secret 未进 git/聊天明文，仅 AK 前缀曾出现），经创始人确认暂不轮换。
