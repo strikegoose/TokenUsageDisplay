@@ -11,12 +11,14 @@ import Foundation
 ///   "limits": [{"window":{"duration":300,"timeUnit":"TIME_UNIT_MINUTE"},
 ///               "detail":{"limit":"100","used":"5","remaining":"95","resetTime":"..."}}],
 ///   "totalQuota": {},
-///   "boosterWallet": {"balance": {"type":"BOOSTER","amount":...,"amountLeft":...},
-///                     "monthlyUsed": {"priceInCents":...,"currency":"CNY"},
-///                     "monthlyChargeLimit": {"priceInCents":...,"currency":"CNY"},
+///   "boosterWallet": {"balance": {"type":"BOOSTER","amount":"5000000000","amountLeft":"5000000000"},
+///                     "monthlyUsed": {"priceInCents":"0","currency":"CNY"},
+///                     "monthlyChargeLimit": {"priceInCents":"0","currency":"CNY"},
 ///                     "monthlyChargeLimitEnabled": true}
 /// }
 /// ```
+/// 注意：金额/数量字段服务端可能返回字符串也可能返回裸数字（历史上两种都出现过），
+/// 解码时必须两种都兼容，见 `flexibleInt`。
 /// Each quota window (weekly / rolling 5h / monthly) becomes its own card.
 struct KimiProvider: ServiceProvider, Sendable {
     let config: ServiceConfiguration
@@ -39,12 +41,29 @@ struct KimiProvider: ServiceProvider, Sendable {
         struct Money: Decodable {
             let priceInCents: Int?
             let currency: String?
+
+            enum CodingKeys: String, CodingKey { case priceInCents, currency }
+
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                currency = try c.decodeIfPresent(String.self, forKey: .currency)
+                priceInCents = KimiProvider.flexibleInt(c, .priceInCents)
+            }
         }
         struct BoosterWallet: Decodable {
             struct Balance: Decodable {
                 let type: String?
                 let amount: Int?
                 let amountLeft: Int?
+
+                enum CodingKeys: String, CodingKey { case type, amount, amountLeft }
+
+                init(from decoder: Decoder) throws {
+                    let c = try decoder.container(keyedBy: CodingKeys.self)
+                    type = try c.decodeIfPresent(String.self, forKey: .type)
+                    amount = KimiProvider.flexibleInt(c, .amount)
+                    amountLeft = KimiProvider.flexibleInt(c, .amountLeft)
+                }
             }
             let balance: Balance?
             let monthlyUsed: Money?
@@ -153,6 +172,14 @@ struct KimiProvider: ServiceProvider, Sendable {
     }
 
     // MARK: - Parsing helpers
+
+    /// 解码可能是字符串（"295000"）或裸数字（295000）的整数字段——
+    /// 服务端两种形式都返回过，任一解析失败按 nil 处理而不是让整个响应解码炸掉。
+    private static func flexibleInt<K: CodingKey>(_ container: KeyedDecodingContainer<K>, _ key: K) -> Int? {
+        if let int = try? container.decodeIfPresent(Int.self, forKey: key) { return int }
+        if let string = try? container.decodeIfPresent(String.self, forKey: key) { return Int(string) }
+        return nil
+    }
 
     private func quotaCard(_ window: WindowUsage, suffix: String) -> UsageData {
         UsageData(
