@@ -11,3 +11,4 @@ TokenUsageDisplay.app/
 *.key
 *.p12
 *.pfx
+.worktrees/
