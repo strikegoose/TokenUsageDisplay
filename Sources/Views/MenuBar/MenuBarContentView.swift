@@ -252,7 +252,7 @@ struct MenuBarContentView: View {
 enum MenuBarSizing {
     static let width: CGFloat = 360
 
-    static func contentHeight(for snapshots: [UsageData]) -> CGFloat {
+    static func contentHeight(for snapshots: [UsageData], serviceErrors: [String: String]) -> CGFloat {
         let header: CGFloat = 52      // header view + divider
         let bottom: CGFloat = 44      // divider + bottom action bar
         let listPadding: CGFloat = 24 // ScrollView VStack .padding(12) × 2
@@ -268,7 +268,7 @@ enum MenuBarSizing {
         }
 
         var cards: CGFloat = 0
-        for key in order { cards += cardHeight(groups[key] ?? []) }
+        for key in order { cards += cardHeight(groups[key] ?? [], hasError: serviceErrors[key] != nil) }
         cards += groupSpacing * CGFloat(max(0, order.count - 1))
 
         let natural = header + listPadding + cards + bottom + safety
@@ -279,7 +279,7 @@ enum MenuBarSizing {
     /// Estimated height of one card (single or grouped), mirroring the layouts
     /// in ServiceCardView / GroupedServiceCardView. Close enough to never clip;
     /// the ScrollView is the backstop if estimates drift.
-    private static func cardHeight(_ group: [UsageData]) -> CGFloat {
+    private static func cardHeight(_ group: [UsageData], hasError: Bool) -> CGFloat {
         let pad: CGFloat = 24
         if group.count > 1 {
             let headerRow: CGFloat = 28
@@ -287,13 +287,17 @@ enum MenuBarSizing {
             let perWindow: CGFloat = 24
             let windowSpacing: CGFloat = 8
             let n = CGFloat(group.count)
-            return pad + headerRow + innerSpacing + perWindow * n + windowSpacing * (n - 1)
+            var h = pad + headerRow + innerSpacing + perWindow * n + windowSpacing * (n - 1)
+            // 刷新失败错误行：外层 VStack 间距 + 最多两行 10 号字（约 28pt）
+            if hasError { h += innerSpacing + 28 }
+            return h
         }
         guard let s = group.first else { return 0 }
         let isBalance = s.usedAmount <= 0
         var h: CGFloat = pad + 28 + 8 + 14   // padding + header row + spacing + detail row
         if !isBalance { h += 8 + 6 }          // progress bar (+ spacing)
         if s.resetTime != nil { h += 8 + 14 } // reset-time row (+ spacing)
+        if hasError { h += 8 + 28 }           // 刷新失败错误行 (+ spacing)，最多两行 10 号字
         return h
     }
 }

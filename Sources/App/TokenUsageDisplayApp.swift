@@ -69,7 +69,10 @@ final class StatusBarController: @unchecked Sendable {
     /// on open and whenever snapshots change while open, so a newly-added or
     /// freshly-loaded service never sits below the fold.
     private func fitPopoverToContent() {
-        let height = MenuBarSizing.contentHeight(for: viewModel?.snapshots ?? [])
+        let height = MenuBarSizing.contentHeight(
+            for: viewModel?.snapshots ?? [],
+            serviceErrors: viewModel?.serviceErrors ?? [:]
+        )
         popover.contentSize = NSSize(width: MenuBarSizing.width, height: height)
     }
 
