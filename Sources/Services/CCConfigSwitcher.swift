@@ -32,13 +32,65 @@ enum CCConfigSwitcher {
         }
     }
 
+    /// DeepSeek retired the `deepseek-chat` / `deepseek-reasoner` model names
+    /// on 2026-07-24. The V4 API now offers `deepseek-v4-flash` and
+    /// `deepseek-v4-pro` (V4-Pro-0813, released 2026-08-13); the default for
+    /// any DeepSeek profile is the flagship Pro.
+    static let deepseekDefaultModel = "deepseek-v4-pro"
+
+    /// The cheap/fast tier: mapped to Claude Code's Haiku slot so `/model`
+    /// still offers a low-cost option alongside the Pro default.
+    static let deepseekFastModel = "deepseek-v4-flash"
+
+    /// Migrate deprecated DeepSeek model names in stored profiles and in the
+    /// live settings.json to the current default. Idempotent.
+    static func migrateDeprecatedDeepSeekModels() {
+        let deprecated: Set<String> = ["deepseek-chat", "deepseek-reasoner"]
+
+        var profiles = loadProfiles()
+        var changed = false
+        for i in profiles.indices {
+            if deprecated.contains(profiles[i].model) {
+                profiles[i].model = deepseekDefaultModel
+                changed = true
+            }
+            for keyPath in [\CCProviderProfile.sonnetModel, \.opusModel, \.haikuModel] {
+                if deprecated.contains(profiles[i][keyPath: keyPath]) {
+                    profiles[i][keyPath: keyPath] = deepseekDefaultModel
+                    changed = true
+                }
+            }
+        }
+        if changed { saveProfiles(profiles) }
+
+        // If the live settings.json still points at a retired model, fix it in
+        // place — the old names no longer resolve on DeepSeek's API at all.
+        guard let live = readLiveEnv(),
+              let model = live["ANTHROPIC_MODEL"],
+              deprecated.contains(model) else { return }
+        var settings = (try? JSONSerialization.jsonObject(with: Data(contentsOf: settingsURL))) as? [String: Any] ?? [:]
+        var envDict = settings["env"] as? [String: Any] ?? [:]
+        for key in ["ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL",
+                    "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL"] {
+            if let value = envDict[key] as? String, deprecated.contains(value) {
+                envDict[key] = deepseekDefaultModel
+            }
+        }
+        settings["env"] = envDict
+        if let data = try? JSONSerialization.data(withJSONObject: settings,
+                                                  options: [.prettyPrinted, .sortedKeys]) {
+            try? writeAtomically(data, to: settingsURL)
+        }
+    }
+
     /// Seed the two default profiles on first launch by inferring the current
     /// DeepSeek config straight from the live `settings.json`.
     static func ensureDefaultProfiles() {
+        migrateDeprecatedDeepSeekModels()
         guard loadProfiles().isEmpty else { return }
 
         var deepseekToken = ""
-        var deepseekModel = "deepseek-chat"
+        var deepseekModel = deepseekDefaultModel
         if let live = readLiveEnv(),
            let token = live["ANTHROPIC_AUTH_TOKEN"], !token.isEmpty {
             deepseekToken = token
@@ -52,6 +104,7 @@ enum CCConfigSwitcher {
             name: "DeepSeek",
             baseURL: "https://api.deepseek.com/anthropic",
             model: deepseekModel,
+            haikuModel: deepseekFastModel,
             authToken: deepseekToken,
             useZhipuKey: false
         )
