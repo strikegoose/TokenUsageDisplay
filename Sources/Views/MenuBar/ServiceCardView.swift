@@ -3,6 +3,8 @@ import SwiftUI
 struct ServiceCardView: View {
     let snapshot: UsageData
     var errorMessage: String? = nil
+    /// Session dead — offer a 重新登录 button next to the error hint.
+    var needsRelogin: Bool = false
     var onRefresh: (() -> Void)?
 
     @State private var isRefreshing = false
@@ -11,8 +13,15 @@ struct ServiceCardView: View {
         snapshot.isUnlimited && snapshot.totalAmount <= 1 && snapshot.usedAmount <= 0
     }
 
+    /// Cursor reports 0% immediately after a quota reset. At that point
+    /// `usedAmount == 0`, but it is still a quota card — never a balance card.
+    private var isCursorQuotaMode: Bool {
+        snapshot.serviceType == .cursor
+    }
+
     private var isBalanceMode: Bool {
-        !isErrorMode && (snapshot.serviceType == .deepseek || snapshot.usedAmount <= 0)
+        !isErrorMode && !isCursorQuotaMode &&
+            (snapshot.serviceType == .deepseek || snapshot.usedAmount <= 0)
     }
 
     var body: some View {
@@ -26,20 +35,26 @@ struct ServiceCardView: View {
     private var errorCard: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: snapshot.serviceType.sfSymbol)
-                    .font(.title3)
-                    .foregroundStyle(Color(nsColor: .systemOrange))
-                    .frame(width: 28, height: 28)
-                    .background(Color(nsColor: .systemOrange).opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+                Link(destination: snapshot.serviceType.usageConsoleURL) {
+                    HStack(spacing: 8) {
+                        Image(systemName: snapshot.serviceType.sfSymbol)
+                            .font(.title3)
+                            .foregroundStyle(Color(nsColor: .systemOrange))
+                            .frame(width: 28, height: 28)
+                            .background(Color(nsColor: .systemOrange).opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(snapshot.serviceName)
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(snapshot.unitLabel)
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(snapshot.serviceName)
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(snapshot.unitLabel)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
                 }
+                .buttonStyle(.plain)
+                .help("打开 \(snapshot.serviceType.displayName) 官网控制台")
 
                 Spacer()
 
@@ -53,6 +68,11 @@ struct ServiceCardView: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 Spacer()
+                if needsRelogin {
+                    Button("重新登录") { ReloginLauncher.relogin(for: snapshot.serviceType) }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
                 if let onRefresh = onRefresh {
                     Button("重试") { onRefresh() }
                         .buttonStyle(.bordered)
@@ -68,22 +88,28 @@ struct ServiceCardView: View {
         VStack(spacing: 8) {
             // Header row
             HStack(spacing: 8) {
-                Image(systemName: snapshot.serviceType.sfSymbol)
-                    .font(.title3)
-                    .foregroundStyle(statusColor)
-                    .frame(width: 28, height: 28)
-                    .background(statusColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+                Link(destination: snapshot.serviceType.usageConsoleURL) {
+                    HStack(spacing: 8) {
+                        Image(systemName: snapshot.serviceType.sfSymbol)
+                            .font(.title3)
+                            .foregroundStyle(statusColor)
+                            .frame(width: 28, height: 28)
+                            .background(statusColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text(snapshot.serviceName)
-                            .font(.system(size: 13, weight: .semibold))
-                        StatusIndicator(status: snapshot.status, size: 6)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text(snapshot.serviceName)
+                                    .font(.system(size: 13, weight: .semibold))
+                                StatusIndicator(status: snapshot.status, size: 6)
+                            }
+                            Text("更新于 \(FormattingHelpers.formatRelativeTime(from: snapshot.lastUpdated))")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
                     }
-                    Text("更新于 \(FormattingHelpers.formatRelativeTime(from: snapshot.lastUpdated))")
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
                 }
+                .buttonStyle(.plain)
+                .help("打开 \(snapshot.serviceType.displayName) 官网控制台")
 
                 Spacer()
 
@@ -92,6 +118,12 @@ struct ServiceCardView: View {
                     Text(formattedBalance)
                         .font(.system(size: 14, weight: .semibold, design: .monospaced))
                         .foregroundStyle(.primary)
+                } else if isCursorQuotaMode {
+                    // Cursor's useful headline is how much quota is left, not
+                    // the raw pool count. The used percentage stays in the row below.
+                    Text("剩 \(remainingPercentage)")
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(statusColor)
                 } else {
                     // Usage percentage — plain tabular number, no pill
                     Text(snapshot.formattedPercentage)
@@ -137,6 +169,14 @@ struct ServiceCardView: View {
                     Text("无上限")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
+                } else if snapshot.serviceType == .cursor {
+                    Text("已用 \(snapshot.formattedPercentage)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("Auto 池")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                 } else {
                     Text("剩余 \(formattedRemaining) \(snapshot.unitLabel)")
                         .font(.system(size: 11))
@@ -173,6 +213,11 @@ struct ServiceCardView: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer()
+                    if needsRelogin {
+                        Button("重新登录") { ReloginLauncher.relogin(for: snapshot.serviceType) }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
                 }
             }
         }
@@ -212,6 +257,10 @@ struct ServiceCardView: View {
 
     private var formattedUsed: String {
         formatAmount(snapshot.usedAmount)
+    }
+
+    private var remainingPercentage: String {
+        String(format: "%.0f%%", max(0, 1 - snapshot.usagePercentage) * 100)
     }
 
     private func formatAmount(_ amount: Double) -> String {

@@ -7,12 +7,17 @@ enum ServiceError: LocalizedError, Sendable {
     case networkError(String)
     case parseError(String)
     case notConfigured
+    /// Local login session is dead and silent recovery failed — the user must
+    /// re-authenticate interactively (the UI shows a 重新登录 button for this).
+    case reauthRequired(String)
     case unknown(String)
 
     var errorDescription: String? {
         switch self {
         case .unauthorized:
             return "API Key 无效，请在设置中检查"
+        case .reauthRequired(let msg):
+            return msg
         case .rateLimited(let retry):
             if let sec = retry { return "请求太频繁，\(Int(sec))秒后重试" }
             return "请求太频繁，请稍后重试"

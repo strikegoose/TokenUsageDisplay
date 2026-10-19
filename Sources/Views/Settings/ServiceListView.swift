@@ -147,6 +147,7 @@ struct ServiceRow: View {
         case .ark:      return .orange
         case .zhipu:    return .teal
         case .aliyun:   return .green
+        case .cursor:   return .indigo
         }
     }
 }
