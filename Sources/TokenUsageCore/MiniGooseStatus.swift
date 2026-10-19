@@ -1,5 +1,17 @@
 import Foundation
 
+/// One successful mini sampling point. Keeping the samples with the status makes
+/// a poll failure intentionally leave the last curve intact instead of clearing it.
+public struct MiniGooseHistorySample: Equatable, Identifiable, Sendable {
+    public let id: Date
+    public let metrics: MiniGooseMetrics
+
+    public init(date: Date, metrics: MiniGooseMetrics) {
+        self.id = date
+        self.metrics = metrics
+    }
+}
+
 /// One read-only sample from minigoose. Every metric is optional on purpose:
 /// a macOS output change must degrade a single field to `--`, not take down
 /// the whole status item.
@@ -53,9 +65,12 @@ public enum MiniGooseSeverity: Int, Comparable, Sendable {
 
 public struct MiniGooseStatus: Equatable, Sendable {
     public var metrics: MiniGooseMetrics?
+    public private(set) var history: [MiniGooseHistorySample] = []
     public var lastSuccessAt: Date?
     public var lastError: String?
     public var isFetching: Bool = false
+
+    public static let historyLimit = 120
 
     public static let idle = MiniGooseStatus()
 
@@ -115,6 +130,10 @@ public struct MiniGooseStatus: Equatable, Sendable {
         copy.lastSuccessAt = date
         copy.lastError = nil
         copy.isFetching = false
+        copy.history.append(MiniGooseHistorySample(date: date, metrics: newMetrics))
+        if copy.history.count > Self.historyLimit {
+            copy.history.removeFirst(copy.history.count - Self.historyLimit)
+        }
         return copy
     }
 

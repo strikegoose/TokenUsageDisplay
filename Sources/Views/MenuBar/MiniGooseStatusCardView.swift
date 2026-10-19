@@ -52,6 +52,26 @@ struct MiniGooseStatusCardView: View {
         status.metrics
     }
 
+    private var cpuHistory: [Double] {
+        status.history.compactMap(\.metrics.cpuUsagePercent)
+    }
+
+    private var memoryHistory: [Double] {
+        status.history.compactMap(\.metrics.memoryUsedPercent)
+    }
+
+    private var rxHistory: [Double] {
+        status.history.compactMap { sample in
+            sample.metrics.rxBytesPerSecond.map(Double.init)
+        }
+    }
+
+    private var txHistory: [Double] {
+        status.history.compactMap { sample in
+            sample.metrics.txBytesPerSecond.map(Double.init)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             header
@@ -59,22 +79,22 @@ struct MiniGooseStatusCardView: View {
             metricRow(
                 title: "CPU",
                 value: "\(percent(metrics?.cpuUsagePercent)) · load \(loadText)",
-                progress: metrics?.cpuUsagePercent.map { $0 / 100 }
+                chart: .cpu
             )
             metricRow(
                 title: "内存",
                 value: "\(bytes(metrics?.memoryUsedBytes)) / \(bytes(metrics?.memoryTotalBytes)) · Swap \(bytes(metrics?.swapUsedBytes))",
-                progress: metrics?.memoryUsedPercent.map { $0 / 100 }
+                chart: .memory
             )
             metricRow(
                 title: "磁盘",
                 value: "\(percent(metrics?.diskUsedPercent)) · 剩余 \(bytes(metrics?.diskAvailableBytes))",
-                progress: metrics?.diskUsedPercent.map { $0 / 100 }
+                chart: nil
             )
             metricRow(
                 title: "网络",
                 value: "\(metrics?.networkInterface ?? "--") ↓\(rate(metrics?.rxBytesPerSecond)) ↑\(rate(metrics?.txBytesPerSecond)) · 外网 \(pingText)",
-                progress: nil
+                chart: .network
             )
             HStack {
                 Text(healthText)
@@ -147,7 +167,13 @@ struct MiniGooseStatusCardView: View {
         }
     }
 
-    private func metricRow(title: String, value: String, progress: Double?) -> some View {
+    private enum MiniGooseMetricChart {
+        case cpu
+        case memory
+        case network
+    }
+
+    private func metricRow(title: String, value: String, chart: MiniGooseMetricChart?) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Text(title)
@@ -157,9 +183,30 @@ struct MiniGooseStatusCardView: View {
                 Text(value)
                     .font(.system(size: 11, design: .monospaced))
             }
-            if let progress {
+            if let chart {
+                chartView(chart)
+            } else if let progress = metrics?.diskUsedPercent.map({ $0 / 100 }) {
                 MiniGooseProgressBar(percentage: progress)
             }
+        }
+    }
+
+    private func chartView(_ chart: MiniGooseMetricChart) -> AnyView {
+        switch chart {
+        case .cpu:
+            return AnyView(MiniGooseSparkline(
+                values: cpuHistory,
+                maxValue: 100,
+                color: Color(nsColor: .systemGreen)
+            ))
+        case .memory:
+            return AnyView(MiniGooseSparkline(
+                values: memoryHistory,
+                maxValue: 100,
+                color: Color(nsColor: .systemPurple)
+            ))
+        case .network:
+            return AnyView(MiniGooseDualSparkline(rxValues: rxHistory, txValues: txHistory))
         }
     }
 
@@ -269,5 +316,164 @@ private struct MiniGooseProgressBar: View {
             }
         }
         .frame(height: 4)
+    }
+}
+
+/// A tiny Activity-Monitor-style trend line. The data comes from the existing
+/// successful SSH polls; drawing the curve itself does not increase polling.
+private struct MiniGooseSparkline: View {
+    let values: [Double]
+    let maxValue: Double
+    let color: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            if values.count < 2 {
+                waitingView
+            } else {
+                canvas(size: geometry.size)
+            }
+        }
+        .frame(height: 30)
+        .background(
+            RoundedRectangle(cornerRadius: 5)
+                .fill(Color.primary.opacity(0.03))
+        )
+    }
+
+    private var waitingView: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 5)
+                .fill(Color.primary.opacity(0.03))
+            Text("曲线采样中 \(values.count)/2")
+                .font(.system(size: 8))
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func canvas(size: CGSize) -> some View {
+        Canvas { context, _ in
+            drawBaseline(in: &context, size: size)
+            let points = normalizedPoints(values: values, maxValue: maxValue, size: size)
+            let line = Self.pathForTesting(points: points)
+
+            var area = line
+            area.addLine(to: CGPoint(x: size.width, y: size.height))
+            area.addLine(to: CGPoint(x: 0, y: size.height))
+            area.closeSubpath()
+            context.fill(area, with: .linearGradient(
+                Gradient(colors: [color.opacity(0.28), color.opacity(0.02)]),
+                startPoint: CGPoint(x: 0, y: 0),
+                endPoint: CGPoint(x: 0, y: size.height)
+            ))
+            context.stroke(line, with: .color(color), lineWidth: 1.3)
+        }
+    }
+
+    private func drawBaseline(in context: inout GraphicsContext, size: CGSize) {
+        var baseline = Path()
+        baseline.move(to: CGPoint(x: 0, y: size.height - 0.5))
+        baseline.addLine(to: CGPoint(x: size.width, y: size.height - 0.5))
+        context.stroke(baseline, with: .color(.secondary.opacity(0.25)), lineWidth: 0.5)
+    }
+
+    private func normalizedPoints(values: [Double], maxValue: Double, size: CGSize) -> [CGPoint] {
+        let safeMax = max(maxValue, values.max() ?? 0, 0.0001)
+        return values.enumerated().map { index, value in
+            CGPoint(
+                x: size.width * CGFloat(index) / CGFloat(max(1, values.count - 1)),
+                y: size.height * (1 - CGFloat(max(0, min(safeMax, value)) / safeMax))
+            )
+        }
+    }
+
+    fileprivate static func pathForTesting(points: [CGPoint]) -> Path {
+        var path = Path()
+        guard let first = points.first else { return path }
+        path.move(to: first)
+
+        if points.count == 2 {
+            path.addLine(to: points[1])
+            return path
+        }
+
+        for index in 1..<(points.count - 1) {
+            let current = points[index]
+            let next = points[index + 1]
+            let midpoint = CGPoint(x: (current.x + next.x) / 2, y: (current.y + next.y) / 2)
+            path.addQuadCurve(to: midpoint, control: current)
+        }
+        if let last = points.last {
+            path.addLine(to: last)
+        }
+        return path
+    }
+}
+
+private struct MiniGooseDualSparkline: View {
+    let rxValues: [Double]
+    let txValues: [Double]
+
+    var body: some View {
+        GeometryReader { geometry in
+            if min(rxValues.count, txValues.count) < 2 {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.primary.opacity(0.03))
+                    Text("曲线采样中 \(min(rxValues.count, txValues.count))/2")
+                        .font(.system(size: 8))
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                Canvas { context, size in
+                    var baseline = Path()
+                    baseline.move(to: CGPoint(x: 0, y: size.height - 0.5))
+                    baseline.addLine(to: CGPoint(x: size.width, y: size.height - 0.5))
+                    context.stroke(baseline, with: .color(.secondary.opacity(0.25)), lineWidth: 0.5)
+
+                    let safeMax = max(
+                        rxValues.max() ?? 0,
+                        txValues.max() ?? 0,
+                        0.0001
+                    )
+                    draw(
+                        rxValues,
+                        in: &context,
+                        size: size,
+                        maxValue: safeMax,
+                        color: Color(nsColor: .systemBlue)
+                    )
+                    draw(
+                        txValues,
+                        in: &context,
+                        size: size,
+                        maxValue: safeMax,
+                        color: Color(nsColor: .systemOrange)
+                    )
+                }
+            }
+        }
+        .frame(height: 30)
+        .background(
+            RoundedRectangle(cornerRadius: 5)
+                .fill(Color.primary.opacity(0.03))
+        )
+    }
+
+    private func draw(
+        _ values: [Double],
+        in context: inout GraphicsContext,
+        size: CGSize,
+        maxValue: Double,
+        color: Color
+    ) {
+        let points = values.enumerated().map { index, value in
+            CGPoint(
+                x: size.width * CGFloat(index) / CGFloat(max(1, values.count - 1)),
+                y: size.height * (1 - CGFloat(max(0, min(maxValue, value)) / maxValue))
+            )
+        }
+        let path = MiniGooseSparkline.pathForTesting(points: points)
+        context.stroke(path, with: .color(color), lineWidth: 1.2)
     }
 }

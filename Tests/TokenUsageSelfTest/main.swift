@@ -76,8 +76,19 @@ func statusFailurePreservesLastSampleAndBecomesCritical() {
 
     status = status.failure("ssh down")
     check(status.metrics != nil, "failure preserves last sample")
+    check(status.history.count == 1, "failure preserves history")
     check(status.severity == .critical, "offline remains critical")
     check(status.shortMenuBarText == "鹅失联", "offline menu-bar text")
+
+    for index in 0..<(MiniGooseStatus.historyLimit + 10) {
+        var metrics = MiniGooseMetrics()
+        metrics.cpuUsagePercent = Double(index % 100)
+        status = status.success(
+            metrics,
+            at: Date(timeIntervalSince1970: TimeInterval(index))
+        )
+    }
+    check(status.history.count == MiniGooseStatus.historyLimit, "history is capped")
 }
 
 final class SwitchableMiniGooseRunner: MiniGooseCommandRunning, @unchecked Sendable {

@@ -219,7 +219,7 @@ enum MenuBarSizing {
         let bottom: CGFloat = 44      // divider + bottom action bar
         let listPadding: CGFloat = 24 // ScrollView VStack .padding(12) × 2
         let groupSpacing: CGFloat = 8 // VStack(spacing: 8) between cards
-        let miniGooseCard: CGFloat = 260 // MiniGoose status card estimate
+        let miniGooseCard: CGFloat = 340 // MiniGoose status card estimate
         let safety: CGFloat = 12      // guard against estimate drift clipping the last card
 
         var order: [String] = []
