@@ -82,6 +82,16 @@ enum AutoConfigDetector {
             ))
         }
 
+        // 5. Cursor — local login session in state.vscdb
+        if CursorAuthManager.isConfigured {
+            results.append(AutoConfigResult(
+                serviceType: .cursor,
+                displayName: "Cursor",
+                apiKey: nil,
+                keychainKey: nil
+            ))
+        }
+
         return results
     }
 

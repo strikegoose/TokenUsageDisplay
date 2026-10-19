@@ -84,10 +84,26 @@ struct KimiProvider: ServiceProvider, Sendable {
     }
 
     func fetchUsage(apiKey: String) async throws -> [UsageData] {
-        guard let token = try? KimiAuthManager.getAccessToken(), !token.isEmpty else {
-            throw ServiceError.unknown("未检测到 kimi-code 本地登录，请先运行 kimi CLI 登录")
+        guard let token = await KimiAuthManager.accessToken(), !token.isEmpty else {
+            throw ServiceError.reauthRequired("未检测到 kimi-code 本地登录，请重新登录")
         }
+        do {
+            return try await fetchCards(token: token)
+        } catch ServiceError.unauthorized {
+            // Server rejected the token we thought was valid — force a refresh
+            // and retry exactly once before asking the user to re-login.
+            guard let fresh = await KimiAuthManager.accessToken(force: true), !fresh.isEmpty else {
+                throw ServiceError.reauthRequired("kimi-code 登录态已过期，请重新登录")
+            }
+            do {
+                return try await fetchCards(token: fresh)
+            } catch ServiceError.unauthorized {
+                throw ServiceError.reauthRequired("kimi-code 登录态已过期，请重新登录")
+            }
+        }
+    }
 
+    private func fetchCards(token: String) async throws -> [UsageData] {
         guard let url = URL(string: "\(KimiAuthManager.baseURL)/usages") else {
             throw ServiceError.networkError("Invalid URL")
         }
@@ -107,7 +123,9 @@ struct KimiProvider: ServiceProvider, Sendable {
         switch httpResponse.statusCode {
         case 200: break
         case 401:
-            throw ServiceError.unknown("kimi-code 登录态已过期，请打开一次 kimi CLI 刷新登录")
+            // Internal signal only — fetchUsage turns this into a force-refresh
+            // retry or a reauthRequired error.
+            throw ServiceError.unauthorized
         case 429:
             throw ServiceError.rateLimited(retryAfter: nil)
         default:
@@ -142,8 +160,32 @@ struct KimiProvider: ServiceProvider, Sendable {
             cards.append(quotaCard(w, suffix: "monthly"))
         }
 
-        // 4. Extra Usage (加油包) monthly spending — money-based, CNY cents
+        // 4. Booster wallet balance (加油包余额) — the remaining balance of the
+        //    加油包. Kimi reports it as a fixed-point value where 1_000_000 units
+        //    == 1 cent (mirrors kimi-code's `fixedPointToCents`): amountLeft is
+        //    the balance, amount is the total. Currency derives from the wallet's
+        //    money fields (CNY → ¥).
         if let wallet = decoded.boosterWallet {
+            let currency = wallet.monthlyUsed?.currency ?? wallet.monthlyChargeLimit?.currency
+            let unit = Self.currencySymbol(currency)
+
+            if let balance = wallet.balance, balance.type == "BOOSTER" {
+                let totalCents = Self.fixedPointCents(balance.amount)
+                let leftCents = Self.fixedPointCents(balance.amountLeft)
+                if totalCents > 0 {
+                    cards.append(UsageData(
+                        serviceId: "\(config.id)#balance",
+                        serviceType: config.serviceType,
+                        serviceName: "\(config.displayName)·加油包余额",
+                        usedAmount: Double(totalCents - leftCents) / 100,
+                        totalAmount: Double(totalCents) / 100,
+                        unitLabel: unit,
+                        isUnlimited: false
+                    ))
+                }
+            }
+
+            // 5. Extra Usage (加油包) monthly spending — money-based, cents
             let usedCents = wallet.monthlyUsed?.priceInCents ?? 0
             let limitCents = wallet.monthlyChargeLimit?.priceInCents ?? 0
             let hasCap = wallet.monthlyChargeLimitEnabled == true && limitCents > 0
@@ -154,7 +196,7 @@ struct KimiProvider: ServiceProvider, Sendable {
                     serviceName: "\(config.displayName)·月度加油包",
                     usedAmount: Double(usedCents) / 100,
                     totalAmount: hasCap ? Double(limitCents) / 100 : 0,
-                    unitLabel: "¥",
+                    unitLabel: unit,
                     isUnlimited: !hasCap
                 ))
             }
@@ -179,6 +221,25 @@ struct KimiProvider: ServiceProvider, Sendable {
         if let int = try? container.decodeIfPresent(Int.self, forKey: key) { return int }
         if let string = try? container.decodeIfPresent(String.self, forKey: key) { return Int(string) }
         return nil
+    }
+
+    /// 加油包余额是定点数：1_000_000 单位 = 1 分（与 kimi-code 的 `fixedPointToCents`
+    /// 一致）。转成整数分；极小的正数按 1 分兜底，避免显示 ¥0.00。
+    private static func fixedPointCents(_ raw: Int?) -> Int {
+        guard let raw, raw > 0 else { return 0 }
+        let cents = Double(raw) / 1_000_000
+        if cents > 0 && cents < 1 { return 1 }
+        return Int(cents.rounded())
+    }
+
+    /// ISO 货币代码 → 界面符号（CNY → ¥，USD → $）。
+    private static func currencySymbol(_ code: String?) -> String {
+        guard let code, !code.isEmpty else { return "¥" }
+        switch code.uppercased() {
+        case "CNY": return "¥"
+        case "USD": return "$"
+        default: return code
+        }
     }
 
     private func quotaCard(_ window: WindowUsage, suffix: String) -> UsageData {

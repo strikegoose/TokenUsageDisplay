@@ -6,6 +6,9 @@ actor ServiceManager {
     private var configurations: [ServiceConfiguration] = []
     private var snapshots: [String: UsageData] = [:]  // keyed by config.id
     private var lastErrors: [String: String] = [:]    // keyed by config.id
+    /// Config ids whose last failure was an auth/session expiry that only an
+    /// interactive re-login can fix (drives the 重新登录 button on cards).
+    private var reauthServices: Set<String> = []
     private var lastActiveAt: [String: Date] = [:]    // config.id -> 最近用量变化时间（活跃优先排序）
     private var pollingTask: Task<Void, Never>?
     private var isRefreshing = false
@@ -39,6 +42,8 @@ actor ServiceManager {
             snapshots.removeValue(forKey: key)
         }
         lastActiveAt.removeValue(forKey: id)
+        lastErrors.removeValue(forKey: id)
+        reauthServices.remove(id)
         ConfigurationStore.shared.save(configurations: configurations)
         ConfigurationStore.shared.removeCachedSnapshots(for: id)
     }
@@ -82,6 +87,11 @@ actor ServiceManager {
         lastErrors
     }
 
+    /// Config ids currently requiring interactive re-login.
+    func allReauthServices() -> Set<String> {
+        reauthServices
+    }
+
     // MARK: - Fetching
 
     func setUpdateHandler(_ handler: @Sendable @escaping ([UsageData]) async -> Void) {
@@ -122,6 +132,7 @@ actor ServiceManager {
                 switch result {
                 case .success(let usages):
                     lastErrors[id] = nil
+                    reauthServices.remove(id)
                     // Detect real usage changes (used/total moved) to drive
                     // "recently active first" ordering. A service whose numbers
                     // are still shifting is one the user is actively using.
@@ -134,12 +145,26 @@ actor ServiceManager {
                         snapshots.removeValue(forKey: id)
                         ConfigurationStore.shared.removeCachedSnapshot(for: id)
                     }
+                    // Drop window snapshots that vanished from the response
+                    // (e.g. Cursor's API pool card hides itself at 0%)
+                    let incomingIds = Set(usages.map(\.serviceId))
+                    for key in snapshots.keys where key.hasPrefix("\(id)#") {
+                        if !incomingIds.contains(key) {
+                            snapshots.removeValue(forKey: key)
+                            ConfigurationStore.shared.removeCachedSnapshot(for: key)
+                        }
+                    }
                     for usage in usages {
                         snapshots[usage.serviceId] = usage
                         ConfigurationStore.shared.cacheSnapshot(usage)
                     }
                 case .failure(let error):
                     lastErrors[id] = error.localizedDescription
+                    if Self.needsRelogin(error) {
+                        reauthServices.insert(id)
+                    } else {
+                        reauthServices.remove(id)
+                    }
                     print("[ServiceManager] Fetch failed for \(id): \(error.localizedDescription)")
                     // Only surface an error placeholder when this service has no
                     // data at all — transient failures must not clobber good snapshots
@@ -183,10 +208,16 @@ actor ServiceManager {
                 ConfigurationStore.shared.cacheSnapshot(usage)
             }
             lastErrors[configId] = nil
+            reauthServices.remove(configId)
         } catch {
             // Surface the failure instead of swallowing it — the card keeps
             // showing stale data and now tells the user why.
             lastErrors[configId] = error.localizedDescription
+            if Self.needsRelogin(error) {
+                reauthServices.insert(configId)
+            } else {
+                reauthServices.remove(configId)
+            }
             print("[ServiceManager] Single refresh failed for \(id): \(error)")
         }
         await onUpdate?(currentSnapshots())
@@ -212,6 +243,15 @@ actor ServiceManager {
 
     // MARK: - Private
 
+    /// True when the error means "the local login session is dead, only an
+    /// interactive re-login helps" — Kimi's reauthRequired or arkcli's
+    /// authExpired.
+    private static func needsRelogin(_ error: Error) -> Bool {
+        if case ServiceError.reauthRequired = error { return true }
+        if let arkError = error as? ARKCLIError, case .authExpired = arkError { return true }
+        return false
+    }
+
     /// DeepSeek keys live in files (Keychain is unreliable for unsigned apps);
     /// Keychain is only consulted as a legacy fallback.
     private nonisolated func resolveAPIKey(for config: ServiceConfiguration) -> String {
@@ -233,6 +273,8 @@ actor ServiceManager {
             return ZhipuProvider(config: config)
         case .aliyun:
             return AliyunProvider(config: config)
+        case .cursor:
+            return CursorProvider(config: config)
         }
     }
 
@@ -264,5 +306,7 @@ private func makeProviderStatic(for config: ServiceConfiguration) -> any Service
         return ZhipuProvider(config: config)
     case .aliyun:
         return AliyunProvider(config: config)
+    case .cursor:
+        return CursorProvider(config: config)
     }
 }

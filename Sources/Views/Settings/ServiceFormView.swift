@@ -21,6 +21,7 @@ struct ServiceFormView: View {
     @State private var zhipuAuthAvailable = false
     @State private var arkcliAvailable = false
     @State private var arkAuthValid = false
+    @State private var cursorAuthAvailable = false
 
     private var isEditing: Bool { existingConfig != nil }
 
@@ -199,6 +200,8 @@ struct ServiceFormView: View {
             akskAuthView(label: "阿里云 AccessKey ID / Secret",
                          subtitle: "(用于查询费用中心账户余额)",
                          akHint: "AccessKey ID (LTAI 开头)")
+        case .cursor:
+            cursorAuthView
         }
     }
 
@@ -245,6 +248,33 @@ struct ServiceFormView: View {
             }
             Spacer()
             if zhipuAuthAvailable {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                    .font(.system(size: 16))
+            } else {
+                Button("重新检测") { checkLocalAuth() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    private var cursorAuthView: some View {
+        HStack {
+            Image(systemName: cursorAuthAvailable ? "checkmark.shield.fill" : "xmark.shield.fill")
+                .foregroundColor(cursorAuthAvailable ? .green : .orange)
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(cursorAuthAvailable ? "Cursor 本地登录态已就绪" : "未检测到 Cursor 登录态")
+                    .font(.system(size: 13, weight: .medium))
+                Text(cursorAuthAvailable
+                     ? "使用 Cursor 本地数据库中的会话自动鉴权"
+                     : "请先在 Cursor 编辑器中登录账号")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            if cursorAuthAvailable {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
                     .font(.system(size: 16))
@@ -339,6 +369,9 @@ struct ServiceFormView: View {
         case .aliyun:
             Text("阿里云 AccessKey 用于查询费用中心账户余额，保存在 ~/.config/tokenusage/keys/ 下的本地文件中（权限 600）。建议 RAM 子账号 + AliyunBSSReadOnlyAccess 权限。")
                 .font(.system(size: 10))
+        case .cursor:
+            Text("Cursor 自动读取本地 Cursor 数据库（state.vscdb）中的登录会话查询订阅额度，无需手动输入。")
+                .font(.system(size: 10))
         }
     }
 
@@ -354,6 +387,7 @@ struct ServiceFormView: View {
         case .zhipu:    return zhipuAuthAvailable
         case .aliyun:   return !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             && !secretKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .cursor:   return cursorAuthAvailable
         }
     }
 
@@ -372,6 +406,8 @@ struct ServiceFormView: View {
             zhipuAuthAvailable = ZhipuAuthManager.isConfigured
         case .aliyun:
             break  // Manual AccessKey entry — no local auth to detect
+        case .cursor:
+            cursorAuthAvailable = CursorAuthManager.isConfigured
         }
     }
 
@@ -463,6 +499,7 @@ struct ServiceFormView: View {
         case .ark:      return ARKProvider(config: config)
         case .zhipu:    return ZhipuProvider(config: config)
         case .aliyun:   return AliyunProvider(config: config)
+        case .cursor:   return CursorProvider(config: config)
         }
     }
 }

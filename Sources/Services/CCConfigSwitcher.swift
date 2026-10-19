@@ -36,11 +36,17 @@ enum CCConfigSwitcher {
     /// on 2026-07-24. The V4 API now offers `deepseek-v4-flash` and
     /// `deepseek-v4-pro` (V4-Pro-0813, released 2026-08-13); the default for
     /// any DeepSeek profile is the flagship Pro.
-    static let deepseekDefaultModel = "deepseek-v4-pro"
+    ///
+    /// Both V4 models expose a 1M-token context window. Claude Code only knows
+    /// its own models' windows, so a bare `deepseek-v4-pro` is treated as an
+    /// unknown model and falls back to a small default. The documented `[1m]`
+    /// suffix declares the 1M window (Claude Code strips it before sending the
+    /// model id to DeepSeek).
+    static let deepseekDefaultModel = "deepseek-v4-pro[1m]"
 
     /// The cheap/fast tier: mapped to Claude Code's Haiku slot so `/model`
     /// still offers a low-cost option alongside the Pro default.
-    static let deepseekFastModel = "deepseek-v4-flash"
+    static let deepseekFastModel = "deepseek-v4-flash[1m]"
 
     /// Migrate deprecated DeepSeek model names in stored profiles and in the
     /// live settings.json to the current default. Idempotent.
@@ -83,10 +89,61 @@ enum CCConfigSwitcher {
         }
     }
 
+    /// DeepSeek V4 (Pro/Flash) has a 1M context window, but Claude Code treats
+    /// a bare third-party model id as unknown and assumes a small default. Add
+    /// the `[1m]` suffix to every DeepSeek V4 model in stored profiles and in
+    /// the live settings.json so the 1M window is declared. Idempotent; leaves
+    /// other providers (GLM, custom models) untouched.
+    static func ensureDeepSeekContextSuffix() {
+        let barePro = "deepseek-v4-pro"
+        let bareFlash = "deepseek-v4-flash"
+
+        func suffixed(_ model: String) -> String? {
+            if model == barePro { return deepseekDefaultModel }
+            if model == bareFlash { return deepseekFastModel }
+            // Already suffixed, or not a DeepSeek V4 model — leave as-is.
+            return model == deepseekDefaultModel || model == deepseekFastModel ? model : nil
+        }
+
+        // 1. Stored profiles.
+        var profiles = loadProfiles()
+        var profilesChanged = false
+        for i in profiles.indices {
+            for keyPath in [\CCProviderProfile.model, \.sonnetModel, \.opusModel, \.haikuModel] {
+                let current = profiles[i][keyPath: keyPath]
+                if let updated = suffixed(current), updated != current {
+                    profiles[i][keyPath: keyPath] = updated
+                    profilesChanged = true
+                }
+            }
+        }
+        if profilesChanged { saveProfiles(profiles) }
+
+        // 2. Live settings.json.
+        guard var settings = (try? JSONSerialization.jsonObject(with: Data(contentsOf: settingsURL))) as? [String: Any],
+              var envDict = settings["env"] as? [String: Any] else { return }
+        var envChanged = false
+        for key in ["ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL",
+                    "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL"] {
+            if let value = envDict[key] as? String, let updated = suffixed(value), updated != value {
+                envDict[key] = updated
+                envChanged = true
+            }
+        }
+        if envChanged {
+            settings["env"] = envDict
+            if let data = try? JSONSerialization.data(withJSONObject: settings,
+                                                      options: [.prettyPrinted, .sortedKeys]) {
+                try? writeAtomically(data, to: settingsURL)
+            }
+        }
+    }
+
     /// Seed the two default profiles on first launch by inferring the current
     /// DeepSeek config straight from the live `settings.json`.
     static func ensureDefaultProfiles() {
         migrateDeprecatedDeepSeekModels()
+        ensureDeepSeekContextSuffix()
         guard loadProfiles().isEmpty else { return }
 
         var deepseekToken = ""

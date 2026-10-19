@@ -10,6 +10,8 @@ final class DashboardViewModel {
     private(set) var globalError: String?
     /// Last fetch error per service config id — drives the "刷新失败" hint on cards.
     private(set) var serviceErrors: [String: String] = [:]
+    /// Config ids whose session is dead — drives the "重新登录" button on cards.
+    private(set) var reauthServiceIds: Set<String> = []
     private var settings = SettingsStore.shared.settings
 
     // MARK: - Computed
@@ -166,9 +168,11 @@ final class DashboardViewModel {
         let model = self
         await ServiceManager.shared.setUpdateHandler { newSnapshots in
             let errors = await ServiceManager.shared.allLastErrors()
+            let reauth = await ServiceManager.shared.allReauthServices()
             await MainActor.run {
                 model.snapshots = newSnapshots
                 model.serviceErrors = errors
+                model.reauthServiceIds = reauth
                 model.lastRefreshDate = Date()
                 model.globalError = nil
                 model.isRefreshing = false
@@ -212,6 +216,7 @@ final class DashboardViewModel {
         await ServiceManager.shared.refreshService(id)
         snapshots = await ServiceManager.shared.currentSnapshots()
         serviceErrors = await ServiceManager.shared.allLastErrors()
+        reauthServiceIds = await ServiceManager.shared.allReauthServices()
     }
 
     func updateRefreshInterval(_ interval: TimeInterval) {
