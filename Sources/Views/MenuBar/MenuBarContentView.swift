@@ -3,9 +3,6 @@ import SwiftUI
 struct MenuBarContentView: View {
     @Environment(DashboardViewModel.self) private var viewModel
     @State private var hoveredServiceId: String?
-    @State private var ccProfiles: [CCProviderProfile] = []
-    @State private var ccActiveId: String?
-    @State private var ccSwitchError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,10 +13,17 @@ struct MenuBarContentView: View {
             Divider()
 
             if viewModel.snapshots.isEmpty {
-                emptyState
+                ScrollView {
+                    VStack(spacing: 8) {
+                        miniGooseCard
+                        emptyState
+                    }
+                    .padding(12)
+                }
             } else {
                 ScrollView {
                     VStack(spacing: 8) {
+                        miniGooseCard
                         ForEach(snapshotGroups, id: \.key) { group in
                             cardView(for: group.values)
                                 .scaleEffect(hoveredServiceId == group.key ? 1.01 : 1.0)
@@ -43,7 +47,6 @@ struct MenuBarContentView: View {
         .background(.ultraThinMaterial)
         .onAppear {
             Task { await viewModel.onAppear() }
-            reloadCCProfiles()
         }
     }
 
@@ -94,7 +97,7 @@ struct MenuBarContentView: View {
                 Text("\(viewModel.serviceCount) 个服务 · \(viewModel.lastRefreshText())")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
-                ccProviderMenu
+                MiniGooseSummaryView(status: viewModel.miniGooseStatus)
             }
 
             Spacer()
@@ -124,56 +127,10 @@ struct MenuBarContentView: View {
         }
     }
 
-    // MARK: - Claude Code Provider Switch
-
-    /// Inline provider switcher in the popover header. Clicking shows a menu
-    /// of stored profiles; selecting one switches immediately.
-    private var ccProviderMenu: some View {
-        Menu {
-            ForEach(ccProfiles) { profile in
-                Button {
-                    switchTo(profile)
-                } label: {
-                    if profile.id == ccActiveId {
-                        Label(profile.name, systemImage: "checkmark")
-                    } else {
-                        Text(profile.name)
-                    }
-                }
-            }
-            Divider()
-            Button("管理…") { SettingsWindowController.shared.show() }
-        } label: {
-            HStack(spacing: 3) {
-                Text("Claude Code：\(activeCCName)")
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 8))
-            }
-            .font(.system(size: 10))
-            .foregroundColor(ccSwitchError != nil ? .red : .secondary)
+    private var miniGooseCard: some View {
+        MiniGooseStatusCardView(status: viewModel.miniGooseStatus) {
+            Task { await viewModel.refreshMiniGoose() }
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
-    }
-
-    private var activeCCName: String {
-        ccProfiles.first(where: { $0.id == ccActiveId })?.name
-            ?? CCConfigSwitcher.activeDisplayName()
-    }
-
-    private func switchTo(_ profile: CCProviderProfile) {
-        do {
-            _ = try CCConfigSwitcher.switchTo(profile)
-            ccActiveId = profile.id
-            ccSwitchError = nil
-        } catch {
-            ccSwitchError = error.localizedDescription
-        }
-    }
-
-    private func reloadCCProfiles() {
-        ccProfiles = CCConfigSwitcher.loadProfiles()
-        ccActiveId = CCConfigSwitcher.detectActiveProfile()?.id
     }
 
     // MARK: - Empty State
@@ -253,11 +210,16 @@ struct MenuBarContentView: View {
 enum MenuBarSizing {
     static let width: CGFloat = 360
 
-    static func contentHeight(for snapshots: [UsageData], serviceErrors: [String: String]) -> CGFloat {
+    static func contentHeight(
+        for snapshots: [UsageData],
+        serviceErrors: [String: String],
+        includesMiniGooseCard: Bool
+    ) -> CGFloat {
         let header: CGFloat = 52      // header view + divider
         let bottom: CGFloat = 44      // divider + bottom action bar
         let listPadding: CGFloat = 24 // ScrollView VStack .padding(12) × 2
         let groupSpacing: CGFloat = 8 // VStack(spacing: 8) between cards
+        let miniGooseCard: CGFloat = 260 // MiniGoose status card estimate
         let safety: CGFloat = 12      // guard against estimate drift clipping the last card
 
         var order: [String] = []
@@ -271,11 +233,15 @@ enum MenuBarSizing {
         var cards: CGFloat = 0
         for key in order { cards += cardHeight(groups[key] ?? [], hasError: serviceErrors[key] != nil) }
         cards += groupSpacing * CGFloat(max(0, order.count - 1))
+        let listContent = order.isEmpty ? emptyStateHeight : cards
+        let miniGooseSpace = includesMiniGooseCard ? miniGooseCard + groupSpacing : 0
 
-        let natural = header + listPadding + cards + bottom + safety
+        let natural = header + listPadding + miniGooseSpace + listContent + bottom + safety
         let screenMax = (NSScreen.main?.visibleFrame.height ?? 820) - 60
         return min(max(natural, 300), screenMax)
     }
+
+    private static let emptyStateHeight: CGFloat = 160
 
     /// Estimated height of one card (single or grouped), mirroring the layouts
     /// in ServiceCardView / GroupedServiceCardView. Close enough to never clip;

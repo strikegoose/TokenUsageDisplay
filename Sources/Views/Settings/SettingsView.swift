@@ -16,12 +16,6 @@ struct SettingsView: View {
                     Label("服务", systemImage: "server.rack")
                 }
                 .tag("services")
-
-            CCProfileListView()
-                .tabItem {
-                    Label("模型切换", systemImage: "arrow.triangle.swap")
-                }
-                .tag("ccswitch")
         }
         .frame(width: 480, height: 440)
     }
@@ -30,6 +24,7 @@ struct SettingsView: View {
 struct GeneralSettingsView: View {
     @Bindable private var settingsStore = SettingsStore.shared
     @State private var selectedInterval: RefreshInterval = .fiveMinutes
+    @State private var miniGooseHost = ""
 
     enum RefreshInterval: TimeInterval, CaseIterable {
         case oneMinute    = 60
@@ -94,8 +89,39 @@ struct GeneralSettingsView: View {
                 }
 
                 Toggle("状态栏显示百分比", isOn: $settingsStore.settings.showPercentageInMenuBar)
+                Toggle("状态栏显示迷你鹅", isOn: $settingsStore.settings.showMiniGooseInMenuBar)
             } header: {
                 Text("显示")
+            }
+
+            Section {
+                Picker("迷你鹅刷新间隔", selection: $settingsStore.settings.miniGooseRefreshIntervalSeconds) {
+                    Text("10 秒").tag(TimeInterval(10))
+                    Text("30 秒").tag(TimeInterval(30))
+                    Text("1 分钟").tag(TimeInterval(60))
+                    Text("5 分钟").tag(TimeInterval(300))
+                }
+
+                HStack {
+                    TextField("SSH 主机", text: $miniGooseHost)
+                    Button("应用") {
+                        let trimmed = miniGooseHost.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        settingsStore.settings.miniGooseHost = trimmed
+                        miniGooseHost = trimmed
+                    }
+                    .disabled(miniGooseHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                              miniGooseHost.trimmingCharacters(in: .whitespacesAndNewlines) == settingsStore.settings.miniGooseHost)
+                }
+
+                Text("默认使用本机 SSH 配置里的 minigoose 别名；只读采集，不在迷你鹅安装服务。")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            } header: {
+                Text("迷你鹅")
+            }
+            .onAppear {
+                miniGooseHost = settingsStore.settings.miniGooseHost
             }
 
             Section {

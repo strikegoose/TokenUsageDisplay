@@ -10,6 +10,7 @@ final class SettingsWindowController: @unchecked Sendable {
 
     func show() {
         if let existing = window, existing.isVisible {
+            place(existing)
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
@@ -20,10 +21,12 @@ final class SettingsWindowController: @unchecked Sendable {
 
         let newWindow = NSWindow(contentViewController: hosting)
         newWindow.title = "TokenUsage 设置"
-        newWindow.setContentSize(NSSize(width: 480, height: 400))
+        let contentSize = NSSize(width: 480, height: 440)
+        newWindow.setContentSize(contentSize)
         newWindow.styleMask = [.titled, .closable, .miniaturizable]
         newWindow.isReleasedWhenClosed = false
-        newWindow.center()
+        newWindow.isRestorable = false
+        place(newWindow)
         newWindow.level = .floating
 
         // When window closes, clean up
@@ -32,6 +35,26 @@ final class SettingsWindowController: @unchecked Sendable {
         window = newWindow
         newWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// LSUIElement windows are not tied to a visible document. Prefer the
+    /// screen that currently contains the mouse, so the settings window can
+    /// never be restored/centered onto an inactive display.
+    private func place(_ window: NSWindow) {
+        window.setContentSize(NSSize(width: 480, height: 440))
+
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
+            ?? NSScreen.main
+        guard let visibleFrame = screen?.visibleFrame else {
+            window.center()
+            return
+        }
+
+        let size = window.frame.size
+        let x = visibleFrame.midX - size.width / 2
+        let y = visibleFrame.midY - size.height / 2
+        window.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
     func close() {

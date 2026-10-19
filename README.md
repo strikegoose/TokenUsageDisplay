@@ -17,6 +17,7 @@ macOS 状态栏小工具：把 Kimi / DeepSeek / 火山方舟 / 智谱 / 阿里�
 - **智谱 GLM Coding Plan**：自动复用 ZCode 的本地登录态，查询周额度 / 滚动窗口配额用量，无需手动填 Key
 - **阿里云**：账户余额监控；手动填 RAM 子账号 AccessKey（建议 AliyunBSSReadOnlyAccess 只读权限），调用费用中心 QueryAccountBalance
 - **Cursor**：订阅额度监控；自动复用 Cursor 编辑器的本地登录态（零配置），Auto / API 双池用量 + 计费周期重置时间，团队版显示美元用量
+- **迷你鹅状态**：通过本机 SSH 别名只读采集 CPU、内存/Swap、磁盘、网络与中央健康检查，不在迷你鹅安装服务
 - **Cmd+Shift+T** 全局热键呼出浮动面板（Carbon 热键，无需辅助功能权限）
 - 自动刷新（1 分钟 ~ 1 小时可调）、开机自启动、全中文界面
 
@@ -36,6 +37,8 @@ macOS 状态栏小工具：把 Kimi / DeepSeek / 火山方舟 / 智谱 / 阿里�
 open TokenUsageDisplay.app
 ```
 
+运行测试：`./test.sh`
+
 构建产物是项目根目录下的 `TokenUsageDisplay.app`（ad-hoc 签名，首次打开如遇 Gatekeeper 提示，在 系统设置 → 隐私与安全性 中允许即可）。纯 SwiftPM，零第三方依赖，没有 Xcode 工程文件。
 
 ## 使用
@@ -46,6 +49,7 @@ open TokenUsageDisplay.app
 
 - 所有配置与凭证只保存在本机 `~/.config/tokenusage/`，不上传、不进 git
 - Kimi 复用 `~/.kimi-code/` 的 OAuth token；火山方舟复用 `~/.arkcli/` 的 STS 临时凭证；智谱复用 `~/.zcode/v2/config.json` 的 API Key；Cursor 复用编辑器本地数据库的登录会话——均为本地只读复用
+- 旧版「Claude Code 接入模型」配置（如 `cc-profiles.json`、`cc-settings-backup.json`）不会被新版自动读取或删除；确认不再回滚后可手动清理
 - DeepSeek / 阿里云需手动填 Key（阿里云填 RAM 子账号 AccessKey），以明文文件保存在 `~/.config/tokenusage/keys/`（权限 0600，仅当前用户可读）
 - 网络请求只发往各服务官方 API，无任何第三方上报
 - README 截图中的余额与用量为演示数据，已打码，不代表真实账户

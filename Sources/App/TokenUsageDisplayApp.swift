@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import TokenUsageCore
 
 // MARK: - Status Bar Controller (replaces MenuBarExtra for better positioning control)
 
@@ -71,7 +72,8 @@ final class StatusBarController: @unchecked Sendable {
     private func fitPopoverToContent() {
         let height = MenuBarSizing.contentHeight(
             for: viewModel?.snapshots ?? [],
-            serviceErrors: viewModel?.serviceErrors ?? [:]
+            serviceErrors: viewModel?.serviceErrors ?? [:],
+            includesMiniGooseCard: true
         )
         popover.contentSize = NSSize(width: MenuBarSizing.width, height: height)
     }
@@ -108,50 +110,68 @@ final class StatusBarController: @unchecked Sendable {
     /// rendering. When only one service exists (or none), this collapses to the
     /// legacy single-value look.
     private func refreshIcon() {
-        guard let button = statusItem?.button, let viewModel else { return }
+        guard statusItem?.button != nil, let viewModel else { return }
 
         let summaries = viewModel.serviceSummaries
+        let settings = SettingsStore.shared.settings
 
-        // Empty state — just a gray dot.
-        if summaries.isEmpty {
-            button.attributedTitle = NSAttributedString(string: "●", attributes: [
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .font: NSFont.systemFont(ofSize: 9)
-            ])
+        if summaries.count > 1 {
+            startCarousel(count: summaries.count)
+            renderIcon(for: summaries[min(carouselIndex, summaries.count - 1)], showsMiniGoose: settings.showMiniGooseInMenuBar)
+        } else if let only = summaries.first {
             stopCarousel()
-            return
-        }
-
-        // Single service — no need to carousel, show label + percentage.
-        if summaries.count == 1 {
+            renderIcon(for: only, showsMiniGoose: settings.showMiniGooseInMenuBar)
+        } else {
             stopCarousel()
-            renderServiceIcon(summaries[0])
-            return
+            renderIcon(for: nil, showsMiniGoose: settings.showMiniGooseInMenuBar)
         }
-
-        // Multiple services — keep the carousel running and render the current slot.
-        startCarousel(count: summaries.count)
-        let clamped = min(carouselIndex, summaries.count - 1)
-        renderServiceIcon(summaries[clamped])
     }
 
-    /// Renders `● <label> <percentage>%` for one service summary.
-    private func renderServiceIcon(_ summary: DashboardViewModel.ServiceSummary) {
+    /// Renders `● [迷你鹅摘要] [服务摘要]`.
+    private func renderIcon(for summary: DashboardViewModel.ServiceSummary?, showsMiniGoose: Bool) {
         // Apple-style: healthy stays monochrome, color means attention needed
-        let color: NSColor
-        switch summary.status {
-        case .ok:       color = .labelColor
-        case .warning:  color = .systemOrange
-        case .critical: color = .systemRed
-        case .error:    color = .systemOrange
+        let serviceColor: NSColor
+        switch summary?.status {
+        case .ok:       serviceColor = .labelColor
+        case .warning:  serviceColor = .systemOrange
+        case .critical: serviceColor = .systemRed
+        case .error:    serviceColor = .systemOrange
+        case nil:       serviceColor = .secondaryLabelColor
         }
 
+        let miniStatus = viewModel?.miniGooseStatus
+        let miniColor: NSColor
+        switch miniStatus?.severity {
+        case .ok, .none: miniColor = .labelColor
+        case .warning:   miniColor = .systemOrange
+        case .critical:  miniColor = .systemRed
+        }
+
+        let showsService = summary != nil && SettingsStore.shared.settings.showPercentageInMenuBar
+        let showsMini = showsMiniGoose && miniStatus != nil
+        let color: NSColor
+        if !showsService && !showsMini {
+            color = .secondaryLabelColor
+        } else if miniStatus?.severity == .critical {
+            color = miniColor
+        } else if let summary, rank(for: summary.status) >= rank(for: .warning) {
+            color = serviceColor
+        } else {
+            color = miniColor
+        }
         let title = NSMutableAttributedString(string: "●", attributes: [
             .foregroundColor: color,
             .font: NSFont.systemFont(ofSize: 9)
         ])
 
-        if SettingsStore.shared.settings.showPercentageInMenuBar {
+        if showsMini, let miniStatus {
+            title.append(NSAttributedString(string: " \(miniStatus.shortMenuBarText)", attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: miniColor,
+            ]))
+        }
+
+        if showsService, let summary {
             title.append(NSAttributedString(string: " \(summary.serviceType.shortLabel) \(summary.menuBarText)", attributes: [
                 .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
                 .foregroundColor: NSColor.labelColor,
@@ -159,6 +179,10 @@ final class StatusBarController: @unchecked Sendable {
         }
 
         statusItem?.button?.attributedTitle = title
+    }
+
+    private func rank(for status: ServiceStatus) -> Int {
+        [.ok: 0, .warning: 1, .critical: 2, .error: 3][status] ?? 0
     }
 
     // MARK: - Carousel
@@ -171,7 +195,10 @@ final class StatusBarController: @unchecked Sendable {
                 let summaries = viewModel.serviceSummaries
                 guard summaries.count > 1 else { self.stopCarousel(); return }
                 self.carouselIndex = (self.carouselIndex + 1) % summaries.count
-                self.renderServiceIcon(summaries[self.carouselIndex])
+                self.renderIcon(
+                    for: summaries[self.carouselIndex],
+                    showsMiniGoose: SettingsStore.shared.settings.showMiniGooseInMenuBar
+                )
             }
         }
         // Run on the common mode so it keeps firing while the popover/menu is open.
@@ -192,7 +219,9 @@ final class StatusBarController: @unchecked Sendable {
             _ = viewModel?.snapshots.count
             _ = viewModel?.aggregatePercentage
             _ = viewModel?.worstStatus
+            _ = viewModel?.miniGooseStatus
             _ = SettingsStore.shared.settings.showPercentageInMenuBar
+            _ = SettingsStore.shared.settings.showMiniGooseInMenuBar
         } onChange: { [weak self] in
             DispatchQueue.main.async {
                 self?.refreshIcon()
@@ -216,6 +245,7 @@ struct TokenUsageDisplayApp: App {
         DispatchQueue.main.async {
             StatusBarController.shared.setup(with: vm)
             DashboardWindowController.shared.setViewModel(vm)
+            Self.closeSwiftUISettingsPlaceholder()
 
             // Recover the login item if it was enabled but the system
             // registration was lost (e.g. after rebuilding the .app).
@@ -231,13 +261,31 @@ struct TokenUsageDisplayApp: App {
         HotkeyManager.shared.register()
     }
 
+    /// SwiftUI's Settings scene is structural only here; on this LSUIElement app
+    /// macOS can still materialise its 900×450 empty window at launch. The real
+    /// settings UI is the 480×440 NSWindow owned by SettingsWindowController.
+    @MainActor
+    private static func closeSwiftUISettingsPlaceholder() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            for window in NSApp.windows where window.title == "TokenUsage设置" {
+                let size = window.frame.size
+                if abs(size.width - 900) < 1 && abs(size.height - 450) < 1 {
+                    window.close()
+                }
+            }
+        }
+    }
+
     var body: some Scene {
         // No WindowGroup — a window (even a 1×1 one) anchors the app to a
         // Space/screen and makes macOS jump there on activation.
         // A Settings scene satisfies SwiftUI's scene requirement without
         // creating any window.
-        Settings {
-            EmptyView()
+        if #available(macOS 15.0, *) {
+            Settings {
+                EmptyView()
+            }
+            .restorationBehavior(.disabled)
         }
     }
 }

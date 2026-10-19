@@ -1,4 +1,5 @@
 import SwiftUI
+import TokenUsageCore
 
 @MainActor
 @Observable
@@ -12,7 +13,10 @@ final class DashboardViewModel {
     private(set) var serviceErrors: [String: String] = [:]
     /// Config ids whose session is dead — drives the "重新登录" button on cards.
     private(set) var reauthServiceIds: Set<String> = []
+    /// Read-only minigoose host metrics, polled independently from API quotas.
+    private(set) var miniGooseStatus = MiniGooseStatus.idle
     private var settings = SettingsStore.shared.settings
+    private let miniGooseMonitor = MiniGooseMonitor()
 
     // MARK: - Computed
 
@@ -189,10 +193,6 @@ final class DashboardViewModel {
         await ServiceManager.shared.loadConfigurations()
         let configs = await ServiceManager.shared.allConfigurations()
 
-        // Seed Claude Code provider profiles (DeepSeek + GLM) on first launch,
-        // inferring the current DeepSeek token from the live settings.json.
-        CCConfigSwitcher.ensureDefaultProfiles()
-
         // Immediately fetch data if we have configured services
         if !configs.isEmpty {
             await ServiceManager.shared.refreshAll()
@@ -203,6 +203,11 @@ final class DashboardViewModel {
 
         let interval = settings.refreshIntervalSeconds
         await ServiceManager.shared.startPolling(intervalSeconds: interval)
+
+        SettingsStore.shared.onMiniGooseSettingsChanged = { [weak self] in
+            self?.restartMiniGooseMonitoring()
+        }
+        restartMiniGooseMonitoring()
     }
 
     func manualRefresh() async {
@@ -210,6 +215,13 @@ final class DashboardViewModel {
         globalError = nil
         await ServiceManager.shared.refreshAll()
         // onUpdate handler will set isRefreshing = false
+    }
+
+    func refreshMiniGoose() async {
+        miniGooseStatus = miniGooseStatus.markingFetching()
+        miniGooseStatus = await miniGooseMonitor.refresh(
+            host: SettingsStore.shared.settings.miniGooseHost
+        )
     }
 
     func refreshService(_ id: String) async {
@@ -224,6 +236,20 @@ final class DashboardViewModel {
         SettingsStore.shared.settings = settings
         Task {
             await ServiceManager.shared.startPolling(intervalSeconds: interval)
+        }
+    }
+
+    private func restartMiniGooseMonitoring() {
+        let settings = SettingsStore.shared.settings
+        let monitor = miniGooseMonitor
+        Task { [weak self] in
+            guard let self else { return }
+            await monitor.startPolling(
+                host: settings.miniGooseHost,
+                intervalSeconds: settings.miniGooseRefreshIntervalSeconds
+            ) { [weak self] status in
+                self?.miniGooseStatus = status
+            }
         }
     }
 

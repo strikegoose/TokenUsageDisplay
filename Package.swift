@@ -10,9 +10,20 @@ let package = Package(
         .executable(name: "TokenUsageDisplay", targets: ["TokenUsageDisplay"])
     ],
     targets: [
+        .target(
+            name: "TokenUsageCore",
+            path: "Sources/TokenUsageCore"
+        ),
         .executableTarget(
             name: "TokenUsageDisplay",
-            path: "Sources"
+            dependencies: ["TokenUsageCore"],
+            path: "Sources",
+            exclude: ["TokenUsageCore"]
+        ),
+        .executableTarget(
+            name: "TokenUsageSelfTest",
+            dependencies: ["TokenUsageCore"],
+            path: "Tests/TokenUsageSelfTest"
         )
     ]
 )

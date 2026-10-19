@@ -107,7 +107,11 @@ final class DashboardWindowController: @unchecked Sendable {
         newWindow.title = "TokenUsage"
         // vm.snapshots is @MainActor-isolated; this UI code always runs on main.
         let panelHeight = MainActor.assumeIsolated {
-            MenuBarSizing.contentHeight(for: vm.snapshots, serviceErrors: vm.serviceErrors)
+            MenuBarSizing.contentHeight(
+                for: vm.snapshots,
+                serviceErrors: vm.serviceErrors,
+                includesMiniGooseCard: true
+            )
         }
         newWindow.setContentSize(NSSize(width: MenuBarSizing.width, height: panelHeight))
         newWindow.styleMask = [.borderless, .nonactivatingPanel]
