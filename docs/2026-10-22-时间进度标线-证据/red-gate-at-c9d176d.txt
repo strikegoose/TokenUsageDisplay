@@ -1,0 +1,76 @@
+HEAD: c9d176d
+Building for debugging...
+[Planning deferred tasks]
+[2 / 14]
+[3 / 15] TokenUsageCore
+[6 / 18] TokenUsageCore
+[10 / 15] TokenUsageSelfTest-product
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Package.swift: TokenUsageCore: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+error: SwiftCompile normal arm64 /Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift failed with a nonzero exit code. Command line:     cd /Users/newgoose/aihq/apps
+    builtin-SwiftPerFileCompile main.swift
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:140:11: error: cannot find 'QuotaTimeProgress' in scope
+138 |     let hour: TimeInterval = 3600
+139 |     // 5h window, 1h elapsed → 0.2 (创始人举例的标线在 1/5 处)
+140 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: 5 * hour) == 0.2, "fraction 1/5 of 5h")
+    |           `- error: cannot find 'QuotaTimeProgress' in scope
+141 |     check(QuotaTimeProgress.fraction(elapsed: 0, duration: 5 * hour) == 0, "fraction start is 0")
+142 |     check(QuotaTimeProgress.fraction(elapsed: 5 * hour, duration: 5 * hour) == 1, "fraction end is 1")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:141:11: error: cannot find 'QuotaTimeProgress' in scope
+139 |     // 5h window, 1h elapsed → 0.2 (创始人举例的标线在 1/5 处)
+140 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: 5 * hour) == 0.2, "fraction 1/5 of 5h")
+141 |     check(QuotaTimeProgress.fraction(elapsed: 0, duration: 5 * hour) == 0, "fraction start is 0")
+    |           `- error: cannot find 'QuotaTimeProgress' in scope
+142 |     check(QuotaTimeProgress.fraction(elapsed: 5 * hour, duration: 5 * hour) == 1, "fraction end is 1")
+143 |     // 上溢（now 已过 reset）钳到 1，不得外溢
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:142:11: error: cannot find 'QuotaTimeProgress' in scope
+140 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: 5 * hour) == 0.2, "fraction 1/5 of 5h")
+141 |     check(QuotaTimeProgress.fraction(elapsed: 0, duration: 5 * hour) == 0, "fraction start is 0")
+142 |     check(QuotaTimeProgress.fraction(elapsed: 5 * hour, duration: 5 * hour) == 1, "fraction end is 1")
+    |           `- error: cannot find 'QuotaTimeProgress' in scope
+143 |     // 上溢（now 已过 reset）钳到 1，不得外溢
+144 |     check(QuotaTimeProgress.fraction(elapsed: 6 * hour, duration: 5 * hour) == 1, "fraction clamps above 1")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:144:11: error: cannot find 'QuotaTimeProgress' in scope
+142 |     check(QuotaTimeProgress.fraction(elapsed: 5 * hour, duration: 5 * hour) == 1, "fraction end is 1")
+143 |     // 上溢（now 已过 reset）钳到 1，不得外溢
+144 |     check(QuotaTimeProgress.fraction(elapsed: 6 * hour, duration: 5 * hour) == 1, "fraction clamps above 1")
+    |           `- error: cannot find 'QuotaTimeProgress' in scope
+145 |     // 下溢（时钟回拨等）钳到 0
+146 |     check(QuotaTimeProgress.fraction(elapsed: -hour, duration: 5 * hour) == 0, "fraction clamps below 0")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:146:11: error: cannot find 'QuotaTimeProgress' in scope
+144 |     check(QuotaTimeProgress.fraction(elapsed: 6 * hour, duration: 5 * hour) == 1, "fraction clamps above 1")
+145 |     // 下溢（时钟回拨等）钳到 0
+146 |     check(QuotaTimeProgress.fraction(elapsed: -hour, duration: 5 * hour) == 0, "fraction clamps below 0")
+    |           `- error: cannot find 'QuotaTimeProgress' in scope
+147 |     // negative-control：非法时长必须拦成 nil，不得返回数值伪装成功
+148 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: 0) == nil, "zero duration rejected")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:148:11: error: cannot find 'QuotaTimeProgress' in scope
+146 |     check(QuotaTimeProgress.fraction(elapsed: -hour, duration: 5 * hour) == 0, "fraction clamps below 0")
+147 |     // negative-control：非法时长必须拦成 nil，不得返回数值伪装成功
+148 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: 0) == nil, "zero duration rejected")
+    |           `- error: cannot find 'QuotaTimeProgress' in scope
+149 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: -hour) == nil, "negative duration rejected")
+150 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: .nan) == nil, "NaN duration rejected")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:149:11: error: cannot find 'QuotaTimeProgress' in scope
+147 |     // negative-control：非法时长必须拦成 nil，不得返回数值伪装成功
+148 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: 0) == nil, "zero duration rejected")
+149 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: -hour) == nil, "negative duration rejected")
+    |           `- error: cannot find 'QuotaTimeProgress' in scope
+150 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: .nan) == nil, "NaN duration rejected")
+151 | }
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:150:11: error: cannot find 'QuotaTimeProgress' in scope
+148 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: 0) == nil, "zero duration rejected")
+149 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: -hour) == nil, "negative duration rejected")
+150 |     check(QuotaTimeProgress.fraction(elapsed: hour, duration: .nan) == nil, "NaN duration rejected")
+    |           `- error: cannot find 'QuotaTimeProgress' in scope
+151 | }
+152 | 
+Failed frontend command:
+/Library/Developer/CommandLineTools/usr/bin/swift-frontend -frontend -c -primary-file /Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift -emit-dependencies-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.d -emit-const-values-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.swiftconstvalues -emit-reference-dependencies-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.swiftdeps -serialize-diagnostics-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.dia -target arm64-apple-macos14.0 -disable-cross-import-overlay-search -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libObservationMacros.dylib\#\#ObservationMacros -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#\#SwiftMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/TokenUsageSelfTest-dependencies-1.json -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk -I /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Products/Debug -Isystem /Library/Developer/CommandLineTools/Developer/usr/lib -F /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Products/Debug/PackageFrameworks -F /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Products/Debug -F /Library/Developer/CommandLineTools/Library/Developer/Frameworks -F /Library/Developer/CommandLineTools/Developer/Library/Frameworks -module-cache-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules -no-color-diagnostics -Xcc -fno-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=4 -swift-version 5 -Onone -D SWIFT_PACKAGE -D DEBUG -D Xcode -serialize-debugging-options -enable-experimental-feature DebugDescriptionMacro -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/newgoose/aihq/apps -enable-anonymous-context-mangled-names -file-compilation-dir /Users/newgoose/aihq/apps -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/SDKStatCaches.noindex/macosx26.5-25F70-a0facfad118c1a7a18f0aad9463f6549742078817fd907cefe959747f00b8bba.sdkstatcache -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -Xcc -I/Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Products/Debug/include -Xcc -I/Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/DerivedSources-normal/arm64 -Xcc -I/Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/DerivedSources/arm64 -Xcc -I/Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name TokenUsageSelfTest -package-name tokenusagedisplay -const-gather-protocols-file /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/TokenUsageSelfTest_const_extract_protocols.json -disable-clang-spi -clang-target arm64-apple-macos26.5 -target-sdk-version 26.5 -target-sdk-name macosx26.5 -in-process-plugin-server-path /Library/Developer/CommandLineTools/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -o /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.o -debug-module-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/TokenUsageSelfTest.swiftmodule -index-unit-output-path /TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.o -index-store-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out -index-system-modules
+error: Build failed

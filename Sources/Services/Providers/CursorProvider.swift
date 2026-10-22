@@ -108,6 +108,12 @@ struct CursorProvider: ServiceProvider, Sendable {
         }
 
         let resetTime = Self.parseDate(decoded.billingCycleEnd)
+        // 计费周期起止都有 → 时长精确；缺起点则不画时间标线。
+        let cycleDuration: TimeInterval? = {
+            guard let start = Self.parseDate(decoded.billingCycleStart),
+                  let end = resetTime, end > start else { return nil }
+            return end.timeIntervalSince(start)
+        }()
 
         // Team / Enterprise: usage is a dollar figure (cents or dollars), not pool percents
         let teamOnDemand = decoded.teamUsage?.onDemand
@@ -122,7 +128,8 @@ struct CursorProvider: ServiceProvider, Sendable {
                 totalAmount: teamLimit ?? max(teamUsed ?? 0, 1),
                 unitLabel: "$",
                 isUnlimited: teamLimit == nil,
-                resetTime: resetTime
+                resetTime: resetTime,
+                windowDuration: cycleDuration
             )]
         }
 
@@ -149,7 +156,8 @@ struct CursorProvider: ServiceProvider, Sendable {
                 totalAmount: autoTotal,
                 unitLabel: "%",
                 isUnlimited: false,
-                resetTime: resetTime
+                resetTime: resetTime,
+                windowDuration: cycleDuration
             ))
         }
         // API pool: named-model API credits — hidden while unused
@@ -162,7 +170,8 @@ struct CursorProvider: ServiceProvider, Sendable {
                 totalAmount: 100,
                 unitLabel: "%",
                 isUnlimited: false,
-                resetTime: resetTime
+                resetTime: resetTime,
+                windowDuration: cycleDuration
             ))
         }
 
@@ -178,7 +187,8 @@ struct CursorProvider: ServiceProvider, Sendable {
                 totalAmount: onDemand?.limit ?? 0,
                 unitLabel: "$",
                 isUnlimited: onDemand?.limit == nil,
-                resetTime: resetTime
+                resetTime: resetTime,
+                windowDuration: cycleDuration
             ))
         }
 

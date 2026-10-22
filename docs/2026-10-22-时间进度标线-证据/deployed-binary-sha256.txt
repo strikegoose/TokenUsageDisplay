@@ -1,0 +1,2 @@
+d750d778080b9b6385eb729c50e17cede2e56e2a339eff3c6824aee7a1b0dc6c  TokenUsageDisplay.app/Contents/MacOS/TokenUsageDisplay
+44757 /Users/newgoose/aihq/apps/TokenUsageDisplay/TokenUsageDisplay.app/Contents/MacOS/TokenUsageDisplay

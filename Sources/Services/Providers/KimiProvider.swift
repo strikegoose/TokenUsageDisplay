@@ -81,6 +81,7 @@ struct KimiProvider: ServiceProvider, Sendable {
         let used: Double
         let limit: Double
         let resetTime: Date?
+        let duration: TimeInterval?
     }
 
     func fetchUsage(apiKey: String) async throws -> [UsageData] {
@@ -142,21 +143,28 @@ struct KimiProvider: ServiceProvider, Sendable {
 
         var cards: [UsageData] = []
 
-        // 1. Weekly quota (周配额)
-        if let usage = decoded.usage, let w = Self.makeWindow(from: usage, label: "周配额") {
+        // 1. Weekly quota (周配额) — rolling 7-day window
+        if let usage = decoded.usage, let w = Self.makeWindow(from: usage, label: "周配额", duration: 7 * 86400) {
             cards.append(quotaCard(w, suffix: "weekly"))
         }
 
-        // 2. Rolling windows (5小时窗口 etc.)
+        // 2. Rolling windows (5小时窗口 etc.) — duration straight from the API
         for item in decoded.limits ?? [] {
             guard let detail = item.detail,
-                  let w = Self.makeWindow(from: detail, label: Self.windowLabel(item.window)) else { continue }
+                  let w = Self.makeWindow(from: detail, label: Self.windowLabel(item.window), duration: Self.windowDuration(item.window)) else { continue }
             let duration = item.window?.duration ?? 0
             cards.append(quotaCard(w, suffix: "win\(duration)"))
         }
 
         // 3. Monthly membership quota (totalQuota — empty object when not applicable)
-        if let totalQuota = decoded.totalQuota, let w = Self.makeWindow(from: totalQuota, label: "月配额") {
+        //    Calendar month: window start = reset minus one calendar month.
+        if let totalQuota = decoded.totalQuota,
+           let parsed = Self.makeWindow(from: totalQuota, label: "月配额", duration: nil) {
+            let duration = parsed.resetTime
+                .flatMap { Calendar.current.date(byAdding: .month, value: -1, to: $0) }
+                .map { parsed.resetTime!.timeIntervalSince($0) }
+            let w = WindowUsage(label: parsed.label, used: parsed.used, limit: parsed.limit,
+                                resetTime: parsed.resetTime, duration: duration)
             cards.append(quotaCard(w, suffix: "monthly"))
         }
 
@@ -251,18 +259,29 @@ struct KimiProvider: ServiceProvider, Sendable {
             totalAmount: max(window.limit, 1),
             unitLabel: window.label,
             isUnlimited: false,
-            resetTime: window.resetTime
+            resetTime: window.resetTime,
+            windowDuration: window.duration
         )
     }
 
-    private static func makeWindow(from quota: UsagesResponse.Quota, label: String) -> WindowUsage? {
+    private static func makeWindow(from quota: UsagesResponse.Quota, label: String, duration: TimeInterval?) -> WindowUsage? {
         let limit = quota.limit.flatMap(Double.init)
         var used = quota.used.flatMap(Double.init)
         if used == nil, let limit, let remaining = quota.remaining.flatMap(Double.init) {
             used = limit - remaining
         }
         guard let used, let limit else { return nil }
-        return WindowUsage(label: label, used: used, limit: limit, resetTime: parseResetTime(quota.resetTime))
+        return WindowUsage(label: label, used: used, limit: limit, resetTime: parseResetTime(quota.resetTime), duration: duration)
+    }
+
+    /// 滚动窗口时长：duration 数值 + timeUnit 语义 → 秒。
+    private static func windowDuration(_ window: UsagesResponse.LimitItem.Window?) -> TimeInterval? {
+        guard let duration = window?.duration, duration > 0 else { return nil }
+        let unit = window?.timeUnit ?? ""
+        if unit.contains("MINUTE") { return TimeInterval(duration) * 60 }
+        if unit.contains("HOUR") { return TimeInterval(duration) * 3600 }
+        if unit.contains("DAY") { return TimeInterval(duration) * 86400 }
+        return nil
     }
 
     /// Parses "2026-07-26T02:11:35.486655Z" (with or without fractional seconds).

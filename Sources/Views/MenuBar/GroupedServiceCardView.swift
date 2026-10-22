@@ -163,7 +163,7 @@ struct GroupedServiceCardView: View {
                     .foregroundStyle(statusColor(for: snapshot))
             }
 
-            UsageProgressBar(percentage: snapshot.usagePercentage, status: snapshot.status, height: 5)
+            UsageProgressBar(percentage: snapshot.usagePercentage, status: snapshot.status, height: 5, timeProgress: snapshot.timeProgress)
         }
     }
 

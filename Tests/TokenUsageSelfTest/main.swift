@@ -134,6 +134,22 @@ final class CountingMiniGooseRunner: MiniGooseCommandRunning, @unchecked Sendabl
     }
 }
 
+func timeProgressFractionClampsAndRejects() {
+    let hour: TimeInterval = 3600
+    // 5h window, 1h elapsed → 0.2 (创始人举例的标线在 1/5 处)
+    check(QuotaTimeProgress.fraction(elapsed: hour, duration: 5 * hour) == 0.2, "fraction 1/5 of 5h")
+    check(QuotaTimeProgress.fraction(elapsed: 0, duration: 5 * hour) == 0, "fraction start is 0")
+    check(QuotaTimeProgress.fraction(elapsed: 5 * hour, duration: 5 * hour) == 1, "fraction end is 1")
+    // 上溢（now 已过 reset）钳到 1，不得外溢
+    check(QuotaTimeProgress.fraction(elapsed: 6 * hour, duration: 5 * hour) == 1, "fraction clamps above 1")
+    // 下溢（时钟回拨等）钳到 0
+    check(QuotaTimeProgress.fraction(elapsed: -hour, duration: 5 * hour) == 0, "fraction clamps below 0")
+    // negative-control：非法时长必须拦成 nil，不得返回数值伪装成功
+    check(QuotaTimeProgress.fraction(elapsed: hour, duration: 0) == nil, "zero duration rejected")
+    check(QuotaTimeProgress.fraction(elapsed: hour, duration: -hour) == nil, "negative duration rejected")
+    check(QuotaTimeProgress.fraction(elapsed: hour, duration: .nan) == nil, "NaN duration rejected")
+}
+
 func monitorTransitionsFromFailureToSuccess() async {
     let runner = SwitchableMiniGooseRunner()
     runner.output = ""
@@ -189,6 +205,7 @@ do {
     try parserAllowsMissingFields()
     parserRejectsWrongEnvelope()
     statusFailurePreservesLastSampleAndBecomesCritical()
+    timeProgressFractionClampsAndRejects()
     await monitorTransitionsFromFailureToSuccess()
     await monitorDoesNotRunConcurrentCommands()
 

@@ -151,7 +151,7 @@ struct ServiceCardView: View {
 
             // Progress bar (only for usage-based services)
             if !isBalanceMode {
-                UsageProgressBar(percentage: snapshot.usagePercentage, status: snapshot.status)
+                UsageProgressBar(percentage: snapshot.usagePercentage, status: snapshot.status, timeProgress: snapshot.timeProgress)
             }
 
             // Detail row

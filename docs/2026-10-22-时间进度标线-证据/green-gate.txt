@@ -1,0 +1,14 @@
+HEAD: c9d176d
+Building for debugging...
+[Planning deferred tasks]
+[5 / 14] TokenUsageCore
+[15 / 19] TokenUsageCore
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Package.swift: TokenUsageCore: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[19 / 23] TokenUsageSelfTest-product
+[20 / 23] TokenUsageSelfTest-product
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Package.swift: TokenUsageSelfTest-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Package.swift: TokenUsageSelfTest-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[22 / 23] TokenUsageSelfTest-product
+Build complete! (1.15秒)
+TokenUsageSelfTest: 33 checks passed
+exit=0

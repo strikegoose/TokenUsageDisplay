@@ -102,7 +102,8 @@ struct ZhipuProvider: ServiceProvider, Sendable {
                 totalAmount: total,
                 unitLabel: "积分",
                 isUnlimited: false,
-                resetTime: Self.parseResetTime(limit.nextResetTime)
+                resetTime: Self.parseResetTime(limit.nextResetTime),
+                windowDuration: Self.windowDuration(for: limit)
             ))
         }
 
@@ -134,6 +135,19 @@ struct ZhipuProvider: ServiceProvider, Sendable {
                 return "额度\(number)"
             }
             return "额度"
+        }
+    }
+
+    /// 窗口时长（秒）：unit=3 → number 小时；unit=6 → 7 天；其余未知 → nil 不画标线。
+    private static func windowDuration(for limit: QuotaResponse.Limit) -> TimeInterval? {
+        switch limit.unit {
+        case 3:
+            guard let hours = limit.number, hours > 0 else { return nil }
+            return TimeInterval(hours) * 3600
+        case 6:
+            return 7 * 86400
+        default:
+            return nil
         }
     }
 
