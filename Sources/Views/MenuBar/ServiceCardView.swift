@@ -118,12 +118,6 @@ struct ServiceCardView: View {
                     Text(formattedBalance)
                         .font(.system(size: 14, weight: .semibold, design: .monospaced))
                         .foregroundStyle(.primary)
-                } else if isCursorQuotaMode {
-                    // Cursor's useful headline is how much quota is left, not
-                    // the raw pool count. The used percentage stays in the row below.
-                    Text("剩 \(remainingPercentage)")
-                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(statusColor)
                 } else {
                     // Usage percentage — plain tabular number, no pill
                     Text(snapshot.formattedPercentage)
@@ -257,10 +251,6 @@ struct ServiceCardView: View {
 
     private var formattedUsed: String {
         formatAmount(snapshot.usedAmount)
-    }
-
-    private var remainingPercentage: String {
-        String(format: "%.0f%%", max(0, 1 - snapshot.usagePercentage) * 100)
     }
 
     private func formatAmount(_ amount: Double) -> String {

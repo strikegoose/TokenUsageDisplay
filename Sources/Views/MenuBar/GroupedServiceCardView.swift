@@ -152,13 +152,7 @@ struct GroupedServiceCardView: View {
                         .foregroundColor(.secondary)
                 }
 
-                if snapshot.serviceType == .cursor {
-                    Text("剩 \(remainingPercentageText(for: snapshot))")
-                        .font(.system(size: 9))
-                        .foregroundColor(.secondary)
-                }
-
-                Text(snapshot.serviceType == .cursor ? "已用 \(snapshot.formattedPercentage)" : snapshot.formattedPercentage)
+                Text(snapshot.formattedPercentage)
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
                     .foregroundStyle(statusColor(for: snapshot))
             }
@@ -191,10 +185,6 @@ struct GroupedServiceCardView: View {
 
     private func money(_ amount: Double, unit: String) -> String {
         String(format: "%@%.2f", unit, amount)
-    }
-
-    private func remainingPercentageText(for snapshot: UsageData) -> String {
-        String(format: "%.0f%%", max(0, 1 - snapshot.usagePercentage) * 100)
     }
 
     private func windowLabel(_ snapshot: UsageData) -> String {
