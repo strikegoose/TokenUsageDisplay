@@ -45,6 +45,9 @@ struct UsageProgressBar: View {
                         .position(x: geometry.size.width * timeProgress, y: geometry.size.height / 2)
                 }
             }
+            // Marker is height+2 tall and centered: without clipping it overhangs
+            // the track by 1pt at timeProgress exactly 0 or 1.
+            .clipped()
         }
         .frame(height: height)
         .modifier(TimeMarkerHelp(text: timeProgress == nil ? nil : "竖线 = 时间进度：填充超过线 = 用量偏快，未到线 = 余量宽松"))

@@ -1,4 +1,5 @@
 import Foundation
+import TokenUsageCore
 
 /// Kimi Coding Plan provider.
 /// Uses the local kimi-code OAuth token to query the same endpoint the CLI's
@@ -274,14 +275,10 @@ struct KimiProvider: ServiceProvider, Sendable {
         return WindowUsage(label: label, used: used, limit: limit, resetTime: parseResetTime(quota.resetTime), duration: duration)
     }
 
-    /// 滚动窗口时长：duration 数值 + timeUnit 语义 → 秒。
+    /// 滚动窗口时长：复用 core 的 duration+timeUnit → 秒换算（自测直接覆盖）。
     private static func windowDuration(_ window: UsagesResponse.LimitItem.Window?) -> TimeInterval? {
-        guard let duration = window?.duration, duration > 0 else { return nil }
-        let unit = window?.timeUnit ?? ""
-        if unit.contains("MINUTE") { return TimeInterval(duration) * 60 }
-        if unit.contains("HOUR") { return TimeInterval(duration) * 3600 }
-        if unit.contains("DAY") { return TimeInterval(duration) * 86400 }
-        return nil
+        guard let window else { return nil }
+        return QuotaTimeProgress.windowDuration(duration: window.duration ?? 0, timeUnit: window.timeUnit)
     }
 
     /// Parses "2026-07-26T02:11:35.486655Z" (with or without fractional seconds).

@@ -148,6 +148,14 @@ func timeProgressFractionClampsAndRejects() {
     check(QuotaTimeProgress.fraction(elapsed: hour, duration: 0) == nil, "zero duration rejected")
     check(QuotaTimeProgress.fraction(elapsed: hour, duration: -hour) == nil, "negative duration rejected")
     check(QuotaTimeProgress.fraction(elapsed: hour, duration: .nan) == nil, "NaN duration rejected")
+    // 服务端滚动窗口描述 → 秒：实测样本 300 + TIME_UNIT_MINUTE = 5 小时
+    check(QuotaTimeProgress.windowDuration(duration: 300, timeUnit: "TIME_UNIT_MINUTE") == 18000, "window 300min = 18000s")
+    check(QuotaTimeProgress.windowDuration(duration: 5, timeUnit: "TIME_UNIT_HOUR") == 18000, "window 5hour = 18000s")
+    check(QuotaTimeProgress.windowDuration(duration: 1, timeUnit: "TIME_UNIT_DAY") == 86400, "window 1day = 86400s")
+    // negative-control：非正时长 / 未知单位必须拦成 nil
+    check(QuotaTimeProgress.windowDuration(duration: 0, timeUnit: "TIME_UNIT_MINUTE") == nil, "window zero duration rejected")
+    check(QuotaTimeProgress.windowDuration(duration: 5, timeUnit: "TIME_UNIT_WEEK") == nil, "window unknown unit rejected")
+    check(QuotaTimeProgress.windowDuration(duration: 5, timeUnit: nil) == nil, "window nil unit rejected")
 }
 
 func monitorTransitionsFromFailureToSuccess() async {

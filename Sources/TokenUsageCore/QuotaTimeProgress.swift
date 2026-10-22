@@ -10,4 +10,16 @@ public enum QuotaTimeProgress {
         guard elapsed.isFinite else { return nil }
         return min(1, max(0, elapsed / duration))
     }
+
+    /// 服务端滚动窗口描述（duration 数值 + timeUnit 语义）→ 秒。
+    /// duration 非正或 timeUnit 无法识别时返回 nil（该窗口不画时间标线）。
+    /// 与 KimiProvider.windowLabel 对同一字段的解释保持一致。
+    public static func windowDuration(duration: Int, timeUnit: String?) -> TimeInterval? {
+        guard duration > 0 else { return nil }
+        let unit = timeUnit ?? ""
+        if unit.contains("MINUTE") { return TimeInterval(duration) * 60 }
+        if unit.contains("HOUR") { return TimeInterval(duration) * 3600 }
+        if unit.contains("DAY") { return TimeInterval(duration) * 86400 }
+        return nil
+    }
 }
