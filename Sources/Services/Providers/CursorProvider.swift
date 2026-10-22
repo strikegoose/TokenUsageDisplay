@@ -135,7 +135,11 @@ struct CursorProvider: ServiceProvider, Sendable {
         // is authoritative (counts against included first), so derive used
         // from it rather than from the raw used/limit numbers.
         let autoPercent = plan.autoPercentUsed.map { max(0, min(100, $0)) }
-        let autoTotal = plan.breakdown?.total ?? plan.limit ?? 0
+        // breakdown.total can be 0 right after a billing-cycle reset (included/
+        // bonus not yet credited); fall back to the plan limit so the pool
+        // still renders instead of reporting a parse error.
+        let breakdownTotal = plan.breakdown?.total ?? 0
+        let autoTotal = breakdownTotal > 0 ? breakdownTotal : (plan.limit ?? 0)
         if let percent = autoPercent, autoTotal > 0 {
             cards.append(UsageData(
                 serviceId: "\(config.id)#auto",
