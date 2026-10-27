@@ -14,12 +14,14 @@ public struct ProcessMiniGooseCommandRunner: MiniGooseCommandRunning {
         process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
         process.arguments = [
             "-o", "BatchMode=yes",
-            // Tailscale DERP fallback can need 8–10s just for the TCP handshake.
-            // Keep this above the observed handshake so the app reports real
-            // command failure instead of turning a slow relay into "offline".
-            "-o", "ConnectTimeout=15",
-            "-o", "ServerAliveInterval=5",
-            "-o", "ServerAliveCountMax=1",
+            // Two failure modes must both fit inside the 90s deadline below:
+            // healthy direct path completes in ~2s; the Tailscale DERP relay
+            // path (office double-NAT, no port mapping possible) needs 60-70s
+            // for banner + the remote script. Only a genuinely dead host should
+            // time out — a slow relay must still yield data.
+            "-o", "ConnectTimeout=60",
+            "-o", "ServerAliveInterval=10",
+            "-o", "ServerAliveCountMax=2",
             host,
             "/bin/zsh", "-s",
         ]
@@ -43,7 +45,7 @@ public struct ProcessMiniGooseCommandRunner: MiniGooseCommandRunning {
             throw MiniGooseRunnerError.executionFailed(error.localizedDescription)
         }
 
-        let deadline = DispatchTime.now() + .seconds(25)
+        let deadline = DispatchTime.now() + .seconds(90)
         let group = DispatchGroup()
         group.enter()
         DispatchQueue.global().async {
@@ -80,7 +82,7 @@ public enum MiniGooseRunnerError: LocalizedError {
         case .executionFailed(let message):
             return "SSH 采集失败：\(message)"
         case .timeout:
-            return "迷你鹅 SSH 采集超时（25 秒）"
+            return "迷你鹅 SSH 采集超时（90 秒）"
         }
     }
 }
