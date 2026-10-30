@@ -111,11 +111,16 @@ vm=$(vm_stat)
 page_size=$(vm_stat | awk -F'page size of ' 'NF>1 {gsub("[^0-9].*","",$2); print $2; exit}')
 pg() { printf '%s\\n' "$vm" | awk -v pattern="$1" '$0 ~ pattern {for(i=1;i<=NF;i++) if($i ~ /^[0-9]+[.]$/) {gsub("[.]","",$i); print $i; exit}}'; }
 active_pages=$(pg 'Pages active:')
+anonymous_pages=$(pg 'Anonymous pages:')
 wired_pages=$(pg 'Pages wired down:')
 compressed_pages=$(pg 'Pages occupied by compressor:')
 throttled_pages=$(pg 'Pages throttled:')
-if [[ -n "$page_size" && -n "$active_pages" && -n "$wired_pages" && -n "$compressed_pages" ]]; then
-  app_mem_used=$(( (active_pages + wired_pages + compressed_pages + throttled_pages) * page_size ))
+app_pages=${anonymous_pages:-$active_pages}
+if [[ -n "$page_size" && -n "$app_pages" && -n "$wired_pages" && -n "$compressed_pages" ]]; then
+  # Activity Monitor "Memory Used" = App Memory (anonymous) + Wired + Compressed.
+  # The top "PhysMem used" figure (mem_used) still goes along as a cache-inclusive
+  # reference; it must not drive the warning threshold.
+  app_mem_used=$(( (app_pages + wired_pages + compressed_pages + throttled_pages) * page_size ))
   mem_wired=$((wired_pages * page_size))
   mem_compressed=$((compressed_pages * page_size))
 else

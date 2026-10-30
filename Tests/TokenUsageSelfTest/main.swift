@@ -43,9 +43,26 @@ func parserParsesFullEnvelope() throws {
     check(metrics.load1 == 2.02 && metrics.load5 == 2.08 && metrics.load15 == 1.98, "parser load")
     check(metrics.memoryTotalBytes == 8_589_934_592, "parser memory total")
     check(metrics.memoryUsedBytes == 6_420_000_000, "parser memory used")
+    check(metrics.appMemoryUsedBytes == nil, "parser app memory absent")
     check(metrics.healthStatus == "PASS" && metrics.healthAgeSeconds == 18, "parser health")
     check(abs((metrics.memoryUsedPercent ?? 0) - 74.736) < 0.01, "memory percent")
     check(abs((metrics.swapUsedPercent ?? 0) - 82.39) < 0.01, "swap percent")
+}
+
+func parserPrefersActivityMonitorMemory() throws {
+    let output = """
+    MINIGOOSE_V1
+    mem_total=8589934592
+    mem_used=7551000000
+    app_mem_used=6084673536
+    health_status=PASS
+    health_failures=0
+    health_age=5
+    """
+    let metrics = try MiniGooseMetricsParser.parse(output)
+    check(metrics.memoryUsedBytes == 7_551_000_000, "parser keeps cache-inclusive memory")
+    check(metrics.appMemoryUsedBytes == 6_084_673_536, "parser activity monitor memory")
+    check(abs((metrics.memoryUsedPercent ?? 0) - 70.83) < 0.01, "app memory drives percent")
 }
 
 func parserAllowsMissingFields() throws {
@@ -210,6 +227,7 @@ do {
     }
 
     try parserParsesFullEnvelope()
+    try parserPrefersActivityMonitorMemory()
     try parserAllowsMissingFields()
     parserRejectsWrongEnvelope()
     statusFailurePreservesLastSampleAndBecomesCritical()

@@ -23,6 +23,10 @@ public struct MiniGooseMetrics: Equatable, Sendable {
     public var load15: Double?
     public var cores: Int?
     public var memoryTotalBytes: Int?
+    /// Activity Monitor-style "Memory Used" (App + Wired + Compressed), when the
+    /// remote script provides it. Drives the UI and warning threshold.
+    public var appMemoryUsedBytes: Int?
+    /// `top` PhysMem used, which includes reclaimable cache. Kept as a detail only.
     public var memoryUsedBytes: Int?
     public var memoryWiredBytes: Int?
     public var memoryCompressedBytes: Int?
@@ -43,7 +47,8 @@ public struct MiniGooseMetrics: Equatable, Sendable {
     public init() {}
 
     public var memoryUsedPercent: Double? {
-        guard let used = memoryUsedBytes, let total = memoryTotalBytes, total > 0 else { return nil }
+        guard let used = appMemoryUsedBytes ?? memoryUsedBytes,
+              let total = memoryTotalBytes, total > 0 else { return nil }
         return Double(used) / Double(total) * 100
     }
 
@@ -96,6 +101,7 @@ public struct MiniGooseStatus: Equatable, Sendable {
         if let age = metrics.healthAgeSeconds, age > 300 { return .warning }
         if let disk = metrics.diskUsedPercent, disk >= 85 { return .warning }
         if let cpu = metrics.cpuUsagePercent, cpu >= 80 { return .warning }
+        // Activity Monitor-style memory; top's cache-inclusive value is not a warning signal.
         if let memory = metrics.memoryUsedPercent, memory >= 90 { return .warning }
         if let swap = metrics.swapUsedPercent, swap >= 80 { return .warning }
         if let ping = metrics.publicPingMilliseconds, ping >= 200 { return .warning }
@@ -191,6 +197,7 @@ public enum MiniGooseMetricsParser {
         metrics.cpuUsagePercent = doubleValue(values["cpu_usage"])
         metrics.cores = intValue(values["cores"])
         metrics.memoryTotalBytes = intValue(values["mem_total"])
+        metrics.appMemoryUsedBytes = intValue(values["app_mem_used"])
         metrics.memoryUsedBytes = intValue(values["mem_used"])
         metrics.memoryWiredBytes = intValue(values["mem_wired"])
         metrics.memoryCompressedBytes = intValue(values["mem_compressed"])

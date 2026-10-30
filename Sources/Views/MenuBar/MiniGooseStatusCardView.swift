@@ -83,8 +83,9 @@ struct MiniGooseStatusCardView: View {
             )
             metricRow(
                 title: "内存",
-                value: "\(bytes(metrics?.memoryUsedBytes)) / \(bytes(metrics?.memoryTotalBytes)) · Swap \(bytes(metrics?.swapUsedBytes))",
-                chart: .memory
+                value: "\(bytes(metrics?.appMemoryUsedBytes ?? metrics?.memoryUsedBytes)) / \(bytes(metrics?.memoryTotalBytes)) · Swap \(bytes(metrics?.swapUsedBytes))",
+                chart: .memory,
+                detail: memoryDetail
             )
             metricRow(
                 title: "磁盘",
@@ -173,7 +174,7 @@ struct MiniGooseStatusCardView: View {
         case network
     }
 
-    private func metricRow(title: String, value: String, chart: MiniGooseMetricChart?) -> some View {
+    private func metricRow(title: String, value: String, chart: MiniGooseMetricChart?, detail: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Text(title)
@@ -182,6 +183,11 @@ struct MiniGooseStatusCardView: View {
                 Spacer()
                 Text(value)
                     .font(.system(size: 11, design: .monospaced))
+            }
+            if let detail {
+                Text(detail)
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
             }
             if let chart {
                 chartView(chart)
@@ -208,6 +214,13 @@ struct MiniGooseStatusCardView: View {
         case .network:
             return AnyView(MiniGooseDualSparkline(rxValues: rxHistory, txValues: txHistory))
         }
+    }
+
+    private var memoryDetail: String? {
+        guard let app = metrics?.appMemoryUsedBytes,
+              let top = metrics?.memoryUsedBytes,
+              top != app else { return nil }
+        return "含缓存 \(bytes(top))"
     }
 
     private var loadText: String {
