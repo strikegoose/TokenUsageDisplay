@@ -168,7 +168,7 @@ struct ServiceCardView: View {
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text("Auto 池")
+                    Text(snapshot.poolLabel ?? "Auto 池")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 } else {

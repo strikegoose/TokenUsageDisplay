@@ -1,0 +1,119 @@
+HEAD: b717fc9
+== 红闸：CursorWeeklyUsageParser 尚未实现，预期编译失败 ==
+Building for debugging...
+[Planning deferred tasks]
+[2 / 14]
+[3 / 15] TokenUsageCore
+[14 / 70]
+[18 / 70]
+[21 / 70]
+[22 / 70]
+[26 / 70]
+[28 / 70]
+[31 / 70]
+[34 / 70]
+[36 / 70]
+[37 / 70]
+[44 / 70]
+[45 / 70]
+[49 / 70]
+[50 / 70]
+[52 / 70]
+[54 / 70]
+[64 / 70] TokenUsageSelfTest-product
+[65 / 70] TokenUsageCore
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Package.swift: TokenUsageCore: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[67 / 71] TokenUsageSelfTest-product
+error: SwiftCompile normal arm64 /Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift failed with a nonzero exit code. Command line:     cd /Users/newgoose/aihq/apps
+    builtin-SwiftPerFileCompile main.swift
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:188:22: error: cannot find 'CursorWeeklyUsageParser' in scope
+186 | 
+187 | func cursorWeeklyParsesRealResponse() {
+188 |     guard let card = CursorWeeklyUsageParser.parse(cursorWeeklyRealResponse.data(using: .utf8)!) else {
+    |                      `- error: cannot find 'CursorWeeklyUsageParser' in scope
+189 |         check(false, "weekly parses real response")
+190 |         return
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:203:11: error: cannot find 'CursorWeeklyUsageParser' in scope
+201 |         """).data(using: .utf8)!
+202 |     }
+203 |     check(CursorWeeklyUsageParser.parse(variant("not_applicable")) == nil, "weekly rejects not_applicable")
+    |           `- error: cannot find 'CursorWeeklyUsageParser' in scope
+204 |     check(CursorWeeklyUsageParser.parse(variant("unavailable")) == nil, "weekly rejects unavailable")
+205 |     check(CursorWeeklyUsageParser.parse(Data("{\"availability\":\"identity_unlinked\"}".utf8)) == nil, "weekly rejects identity_unlinked")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:204:11: error: cannot find 'CursorWeeklyUsageParser' in scope
+202 |     }
+203 |     check(CursorWeeklyUsageParser.parse(variant("not_applicable")) == nil, "weekly rejects not_applicable")
+204 |     check(CursorWeeklyUsageParser.parse(variant("unavailable")) == nil, "weekly rejects unavailable")
+    |           `- error: cannot find 'CursorWeeklyUsageParser' in scope
+205 |     check(CursorWeeklyUsageParser.parse(Data("{\"availability\":\"identity_unlinked\"}".utf8)) == nil, "weekly rejects identity_unlinked")
+206 |     check(CursorWeeklyUsageParser.parse(Data("not json".utf8)) == nil, "weekly rejects garbage")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:205:11: error: cannot find 'CursorWeeklyUsageParser' in scope
+203 |     check(CursorWeeklyUsageParser.parse(variant("not_applicable")) == nil, "weekly rejects not_applicable")
+204 |     check(CursorWeeklyUsageParser.parse(variant("unavailable")) == nil, "weekly rejects unavailable")
+205 |     check(CursorWeeklyUsageParser.parse(Data("{\"availability\":\"identity_unlinked\"}".utf8)) == nil, "weekly rejects identity_unlinked")
+    |           `- error: cannot find 'CursorWeeklyUsageParser' in scope
+206 |     check(CursorWeeklyUsageParser.parse(Data("not json".utf8)) == nil, "weekly rejects garbage")
+207 | }
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:206:11: error: cannot find 'CursorWeeklyUsageParser' in scope
+204 |     check(CursorWeeklyUsageParser.parse(variant("unavailable")) == nil, "weekly rejects unavailable")
+205 |     check(CursorWeeklyUsageParser.parse(Data("{\"availability\":\"identity_unlinked\"}".utf8)) == nil, "weekly rejects identity_unlinked")
+206 |     check(CursorWeeklyUsageParser.parse(Data("not json".utf8)) == nil, "weekly rejects garbage")
+    |           `- error: cannot find 'CursorWeeklyUsageParser' in scope
+207 | }
+208 | 
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:216:11: error: cannot find 'CursorWeeklyUsageParser' in scope
+214 |         """).data(using: .utf8)!
+215 |     }
+216 |     check(CursorWeeklyUsageParser.parse(fixture("0", "0", "2026-10-30T23:33:34.774Z", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects zero budget")
+    |           `- error: cannot find 'CursorWeeklyUsageParser' in scope
+217 |     check(CursorWeeklyUsageParser.parse(fixture("-5", "4615", "2026-10-30T23:33:34.774Z", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects negative used")
+218 |     check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "2026-11-06T23:33:34.774Z", "2026-10-30T23:33:34.774Z")) == nil, "weekly rejects reset before start")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:217:11: error: cannot find 'CursorWeeklyUsageParser' in scope
+215 |     }
+216 |     check(CursorWeeklyUsageParser.parse(fixture("0", "0", "2026-10-30T23:33:34.774Z", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects zero budget")
+217 |     check(CursorWeeklyUsageParser.parse(fixture("-5", "4615", "2026-10-30T23:33:34.774Z", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects negative used")
+    |           `- error: cannot find 'CursorWeeklyUsageParser' in scope
+218 |     check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "2026-11-06T23:33:34.774Z", "2026-10-30T23:33:34.774Z")) == nil, "weekly rejects reset before start")
+219 |     check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "bad-date", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects bad date")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:218:11: error: cannot find 'CursorWeeklyUsageParser' in scope
+216 |     check(CursorWeeklyUsageParser.parse(fixture("0", "0", "2026-10-30T23:33:34.774Z", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects zero budget")
+217 |     check(CursorWeeklyUsageParser.parse(fixture("-5", "4615", "2026-10-30T23:33:34.774Z", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects negative used")
+218 |     check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "2026-11-06T23:33:34.774Z", "2026-10-30T23:33:34.774Z")) == nil, "weekly rejects reset before start")
+    |           `- error: cannot find 'CursorWeeklyUsageParser' in scope
+219 |     check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "bad-date", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects bad date")
+220 |     check(CursorWeeklyUsageParser.parse(Data("{\"availability\":\"available\",\"weeklyIncludedStatus\":{\"status\":\"metered\"}}".utf8)) == nil, "weekly rejects missing usage block")
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:219:11: error: cannot find 'CursorWeeklyUsageParser' in scope
+217 |     check(CursorWeeklyUsageParser.parse(fixture("-5", "4615", "2026-10-30T23:33:34.774Z", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects negative used")
+218 |     check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "2026-11-06T23:33:34.774Z", "2026-10-30T23:33:34.774Z")) == nil, "weekly rejects reset before start")
+219 |     check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "bad-date", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects bad date")
+    |           `- error: cannot find 'CursorWeeklyUsageParser' in scope
+220 |     check(CursorWeeklyUsageParser.parse(Data("{\"availability\":\"available\",\"weeklyIncludedStatus\":{\"status\":\"metered\"}}".utf8)) == nil, "weekly rejects missing usage block")
+221 | }
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:220:11: error: cannot find 'CursorWeeklyUsageParser' in scope
+218 |     check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "2026-11-06T23:33:34.774Z", "2026-10-30T23:33:34.774Z")) == nil, "weekly rejects reset before start")
+219 |     check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "bad-date", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects bad date")
+220 |     check(CursorWeeklyUsageParser.parse(Data("{\"availability\":\"available\",\"weeklyIncludedStatus\":{\"status\":\"metered\"}}".utf8)) == nil, "weekly rejects missing usage block")
+    |           `- error: cannot find 'CursorWeeklyUsageParser' in scope
+221 | }
+222 | 
+
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift:228:22: error: cannot find 'CursorWeeklyUsageParser' in scope
+226 |      "weeklyIncludedUsage":{"usedCents":5000,"budgetCents":4615,"periodStart":"2026-10-30T23:33:34.774Z","resetsAt":"2026-11-06T23:33:34.774Z"}}
+227 |     """
+228 |     guard let card = CursorWeeklyUsageParser.parse(json.data(using: .utf8)!) else {
+    |                      `- error: cannot find 'CursorWeeklyUsageParser' in scope
+229 |         check(false, "weekly clamps overrun")
+230 |         return
+Failed frontend command:
+/Library/Developer/CommandLineTools/usr/bin/swift-frontend -frontend -c -primary-file /Users/newgoose/aihq/apps/TokenUsageDisplay/Tests/TokenUsageSelfTest/main.swift -emit-dependencies-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.d -emit-const-values-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.swiftconstvalues -emit-reference-dependencies-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.swiftdeps -serialize-diagnostics-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.dia -target arm64-apple-macos14.0 -disable-cross-import-overlay-search -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libObservationMacros.dylib\#\#ObservationMacros -load-resolved-plugin /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#\#SwiftMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/TokenUsageSelfTest-dependencies-1.json -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk -I /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Products/Debug -Isystem /Library/Developer/CommandLineTools/Developer/usr/lib -F /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Products/Debug/PackageFrameworks -F /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Products/Debug -F /Library/Developer/CommandLineTools/Library/Developer/Frameworks -F /Library/Developer/CommandLineTools/Developer/Library/Frameworks -module-cache-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules -no-color-diagnostics -Xcc -fno-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=4 -swift-version 5 -Onone -D SWIFT_PACKAGE -D DEBUG -D Xcode -serialize-debugging-options -enable-experimental-feature DebugDescriptionMacro -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/newgoose/aihq/apps -enable-anonymous-context-mangled-names -file-compilation-dir /Users/newgoose/aihq/apps -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/SDKStatCaches.noindex/macosx26.5-25F70-1aa54e4a50e311dbd51de5aafe7eca3d742078817fd907cefe959747f00b8bba.sdkstatcache -Xcc -fmodules-prune-interval\=86400 -Xcc -fmodules-prune-after\=345600 -Xcc -I/Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Products/Debug/include -Xcc -I/Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/DerivedSources-normal/arm64 -Xcc -I/Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/DerivedSources/arm64 -Xcc -I/Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name TokenUsageSelfTest -package-name tokenusagedisplay -const-gather-protocols-file /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/TokenUsageSelfTest_const_extract_protocols.json -disable-clang-spi -clang-target arm64-apple-macos26.5 -target-sdk-version 26.5 -target-sdk-name macosx26.5 -in-process-plugin-server-path /Library/Developer/CommandLineTools/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -o /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.o -debug-module-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out/Intermediates.noindex/TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/TokenUsageSelfTest.swiftmodule -index-unit-output-path /TokenUsageDisplay.build/Debug/TokenUsageSelfTest-p.build/Objects-normal/arm64/main.o -index-store-path /Users/newgoose/aihq/apps/TokenUsageDisplay/.build/out -index-system-modules
+error: Build failed
+exit=1

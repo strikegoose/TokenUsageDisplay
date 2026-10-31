@@ -175,6 +175,63 @@ func timeProgressFractionClampsAndRejects() {
     check(QuotaTimeProgress.windowDuration(duration: 5, timeUnit: nil) == nil, "window nil unit rejected")
 }
 
+// MARK: Cursor weekly included usage (new pricing endpoint /api/dashboard/v2/usage-status)
+
+private let cursorWeeklyRealResponse = """
+{"availability":"available",
+ "monthlyUsage":{"usedCents":0,"limitCents":null,"additionalUsageOff":false,"creditsUsedCents":0,"periodStart":"2026-10-01T00:00:00.000Z","resetsAt":"2026-11-01T00:00:00.000Z"},
+ "weeklyIncludedStatus":{"status":"metered"},
+ "weeklyIncludedUsage":{"usedCents":483,"budgetCents":4615,"resetCounter":2,"periodStart":"2026-10-30T23:33:34.774Z","resetsAt":"2026-11-06T23:33:34.774Z"}}
+"""
+
+func cursorWeeklyParsesRealResponse() {
+    guard let card = CursorWeeklyUsageParser.parse(cursorWeeklyRealResponse.data(using: .utf8)!) else {
+        check(false, "weekly parses real response")
+        return
+    }
+    check(abs(card.percentUsed - 10.4637) < 0.01, "weekly percent 10.46")
+    check(abs(card.resetTime.timeIntervalSince(card.windowStart) - 7 * 24 * 3600) < 1, "weekly window is 7 days")
+    check(card.resetTime > card.windowStart, "weekly reset after start")
+}
+
+func cursorWeeklyRejectsNonMeteredAndBadData() {
+    func variant(_ patch: String) -> Data {
+        ("""
+        {"availability":"available","weeklyIncludedStatus":{"status":"\(patch)"}}
+        """).data(using: .utf8)!
+    }
+    check(CursorWeeklyUsageParser.parse(variant("not_applicable")) == nil, "weekly rejects not_applicable")
+    check(CursorWeeklyUsageParser.parse(variant("unavailable")) == nil, "weekly rejects unavailable")
+    check(CursorWeeklyUsageParser.parse(Data("{\"availability\":\"identity_unlinked\"}".utf8)) == nil, "weekly rejects identity_unlinked")
+    check(CursorWeeklyUsageParser.parse(Data("not json".utf8)) == nil, "weekly rejects garbage")
+}
+
+func cursorWeeklyRejectsInvalidNumbersAndDates() {
+    func fixture(_ used: String, _ budget: String, _ start: String, _ resets: String) -> Data {
+        ("""
+        {"availability":"available","weeklyIncludedStatus":{"status":"metered"},
+         "weeklyIncludedUsage":{"usedCents":\(used),"budgetCents":\(budget),"periodStart":"\(start)","resetsAt":"\(resets)"}}
+        """).data(using: .utf8)!
+    }
+    check(CursorWeeklyUsageParser.parse(fixture("0", "0", "2026-10-30T23:33:34.774Z", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects zero budget")
+    check(CursorWeeklyUsageParser.parse(fixture("-5", "4615", "2026-10-30T23:33:34.774Z", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects negative used")
+    check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "2026-11-06T23:33:34.774Z", "2026-10-30T23:33:34.774Z")) == nil, "weekly rejects reset before start")
+    check(CursorWeeklyUsageParser.parse(fixture("483", "4615", "bad-date", "2026-11-06T23:33:34.774Z")) == nil, "weekly rejects bad date")
+    check(CursorWeeklyUsageParser.parse(Data("{\"availability\":\"available\",\"weeklyIncludedStatus\":{\"status\":\"metered\"}}".utf8)) == nil, "weekly rejects missing usage block")
+}
+
+func cursorWeeklyClampsOverrun() {
+    let json = """
+    {"availability":"available","weeklyIncludedStatus":{"status":"metered"},
+     "weeklyIncludedUsage":{"usedCents":5000,"budgetCents":4615,"periodStart":"2026-10-30T23:33:34.774Z","resetsAt":"2026-11-06T23:33:34.774Z"}}
+    """
+    guard let card = CursorWeeklyUsageParser.parse(json.data(using: .utf8)!) else {
+        check(false, "weekly clamps overrun")
+        return
+    }
+    check(card.percentUsed == 100, "weekly caps at 100%")
+}
+
 func monitorTransitionsFromFailureToSuccess() async {
     let runner = SwitchableMiniGooseRunner()
     runner.output = ""
@@ -232,6 +289,10 @@ do {
     parserRejectsWrongEnvelope()
     statusFailurePreservesLastSampleAndBecomesCritical()
     timeProgressFractionClampsAndRejects()
+    cursorWeeklyParsesRealResponse()
+    cursorWeeklyRejectsNonMeteredAndBadData()
+    cursorWeeklyRejectsInvalidNumbersAndDates()
+    cursorWeeklyClampsOverrun()
     await monitorTransitionsFromFailureToSuccess()
     await monitorDoesNotRunConcurrentCommands()
 

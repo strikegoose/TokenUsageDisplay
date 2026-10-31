@@ -1,0 +1,32 @@
+HEAD: b717fc9
+== 绿闸：实现后全量自测 ==
+Building for debugging...
+[Planning deferred tasks]
+[4 / 13]
+[5 / 14] TokenUsageCore
+[16 / 70]
+[20 / 70]
+[23 / 70]
+[24 / 70]
+[28 / 70]
+[31 / 70]
+[36 / 70]
+[38 / 70]
+[39 / 70]
+[46 / 70]
+[47 / 70]
+[51 / 70]
+[52 / 70]
+[54 / 70]
+[56 / 70]
+[62 / 69]
+[67 / 71] TokenUsageCore
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Package.swift: TokenUsageCore: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[71 / 75] TokenUsageSelfTest-product
+[72 / 75] TokenUsageSelfTest-product
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Package.swift: TokenUsageSelfTest-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/newgoose/aihq/apps/TokenUsageDisplay/Package.swift: TokenUsageSelfTest-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[74 / 75] TokenUsageSelfTest-product
+Build complete! (19.06秒)
+TokenUsageSelfTest: 56 checks passed
+exit=0

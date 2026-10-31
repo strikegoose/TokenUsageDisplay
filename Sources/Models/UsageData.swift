@@ -33,6 +33,7 @@ struct UsageData: Codable, Equatable, Sendable {
     let isUnlimited: Bool  // true if no hard cap
     let resetTime: Date?   // when this quota window resets (if known)
     let windowDuration: TimeInterval?  // whole window length; with resetTime it positions the time marker
+    let poolLabel: String?  // right-side detail label on the single card (e.g. "周配额"); nil → Cursor legacy "Auto 池"
 
     /// 时间进度 0...1：窗口已流逝的比例。仅当 resetTime 与 windowDuration 都
     /// 已知时存在（余额类卡片永远没有）。用于进度条上的时间标线。
@@ -65,7 +66,8 @@ struct UsageData: Codable, Equatable, Sendable {
         unitLabel: String,
         isUnlimited: Bool = false,
         resetTime: Date? = nil,
-        windowDuration: TimeInterval? = nil
+        windowDuration: TimeInterval? = nil,
+        poolLabel: String? = nil
     ) {
         self.serviceId = serviceId
         self.serviceType = serviceType
@@ -79,6 +81,7 @@ struct UsageData: Codable, Equatable, Sendable {
         self.isUnlimited = isUnlimited
         self.resetTime = resetTime
         self.windowDuration = windowDuration
+        self.poolLabel = poolLabel
     }
 
     /// Creates a placeholder entry for services that failed to fetch data.

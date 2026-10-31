@@ -1,9 +1,15 @@
 import Foundation
+import TokenUsageCore
 
 /// Cursor (cursor.com) provider.
 /// Reads the local Cursor login session and queries the same endpoint the
 /// official dashboard uses: GET {baseURL}/api/usage-summary with cookie
 /// `WorkosCursorSessionToken={userId}%3A%3A{accessToken}`.
+///
+/// New-pricing accounts (2026-10 dashboard switch): weekly included usage is
+/// authoritative via GET {baseURL}/api/dashboard/v2/usage-status?scope=user
+/// (weeklyIncludedUsage, tracked in cents); usage-summary below is kept as
+/// the legacy fallback for old plans / teams.
 ///
 /// Verified response shape (individual Pro):
 /// ```json
@@ -67,6 +73,14 @@ struct CursorProvider: ServiceProvider, Sendable {
     func fetchUsage(apiKey: String) async throws -> [UsageData] {
         guard let session = CursorAuthManager.loadSession() else {
             throw ServiceError.unknown("未检测到 Cursor 登录态，请先在 Cursor 中登录账号")
+        }
+
+        // New-pricing accounts (2026-10 dashboard): weekly included usage in
+        // cents. The legacy /api/usage-summary queried below reports stale
+        // monthly data for these accounts, so the weekly endpoint is tried
+        // first; anything that is not a metered weekly quota falls through.
+        if let weeklyCard = try? await fetchWeeklyIncluded(session: session) {
+            return [weeklyCard]
         }
 
         guard let url = URL(string: "\(CursorAuthManager.baseURL)/api/usage-summary") else {
@@ -196,6 +210,40 @@ struct CursorProvider: ServiceProvider, Sendable {
             throw ServiceError.parseError("No quota pools in response")
         }
         return cards
+    }
+
+    /// Queries the new-pricing usage-status endpoint. Returns nil unless the
+    /// account reports a metered personal weekly quota (see CursorWeeklyUsageParser).
+    private func fetchWeeklyIncluded(session: CursorAuthManager.Session) async throws -> UsageData? {
+        guard let url = URL(string: "\(CursorAuthManager.baseURL)/api/dashboard/v2/usage-status?scope=user") else {
+            return nil
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("WorkosCursorSessionToken=\(session.cookieValue)", forHTTPHeaderField: "Cookie")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(CursorAuthManager.baseURL, forHTTPHeaderField: "Origin")
+        request.setValue("\(CursorAuthManager.baseURL)/dashboard/usage", forHTTPHeaderField: "Referer")
+        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 30
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            return nil
+        }
+        guard let card = CursorWeeklyUsageParser.parse(data) else { return nil }
+
+        return UsageData(
+            serviceId: "\(config.id)#weekly",
+            serviceType: config.serviceType,
+            serviceName: "\(config.displayName)·周配额",
+            usedAmount: card.percentUsed,
+            totalAmount: 100,
+            unitLabel: "%",
+            resetTime: card.resetTime,
+            windowDuration: card.resetTime.timeIntervalSince(card.windowStart),
+            poolLabel: "周配额"
+        )
     }
 
     func validateConnection(apiKey: String) async throws -> Bool {
